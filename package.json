@@ -1,15 +1,15 @@
 {
-	"name": "aemsync"
-	"description": "Adobe AEM Synchronization Tool"
+	"name": "aemsync",
 	"version": "0.1",
+	"description": "Adobe AEM Synchronization Tool",
+	"author": "Michal Kochel <gavoja@gmail.com>",
 	"keywords": [
 		"AEM",
 		"CQ",
-		"Sling"
+		"Sling",
 		"Synchronization"
 	],
 	"homepage": "https://github.com/gavoja/aemsync",
-	"author": "Michal Kochel <gavoja@gmail.com>",
 	"bugs": {
 		"url": "https://github.com/gavoja/aemsync/issues"
 	},
@@ -17,5 +17,18 @@
 		"type": "git",
 		"url": "https://github.com/gavoja/aemsync.git"
 	},
-	"main": "aemsync.js"
+	"main": "aemsync.js",
+	"dependencies": {
+		"adm-zip": ">=0.4.4",
+		"form-data": ">=0.1.4",
+		"minimist": ">=0.2.0",
+		"node-watch": ">=0.3.4"
+  	},
+	"bin": {
+    	"aemsync": "./bin/aemsync"
+ 	},
+	"license": "WTFPL 2"
 }
+
+
+

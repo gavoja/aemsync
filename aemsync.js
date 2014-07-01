@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 /*global console, require, process, setInterval, Buffer */
 (function () {
 	"use strict";
