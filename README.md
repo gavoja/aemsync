@@ -3,7 +3,15 @@ aemsync
 
 Adobe AEM Synchronization Tool
 
-Usage
+### Installation
+
+With [npm](http://npmjs.org) do:
+
+    $ npm install aemsync
+
+
+### Usage
+
 ```
 node aemsync.js -t targets [-i interval] path_to_watch
 
@@ -11,7 +19,8 @@ node aemsync.js -t targets [-i interval] path_to_watch
 -i   Update interval; default 500 ms.
 ```
 
-Example
+### Example
+
 ```
 node aemsync.js -t http://admin:admin@localhost:4502 ~/workspace/my_project
 ```
