@@ -12,10 +12,12 @@
 	var AdmZip = require("adm-zip");
 	var FormData = require('form-data');
 
+	var HELP = "Usage: aemsync -t targets [-i interval] path_to_watch\nWebsite: https://github.com/gavoja/aemsync";
+	var SEPARATOR = ":";
+
+	var syncerInterval = 500;
 	var queue = [];
 	var lock = 0;
-
-	var SYNCER_INTERVAL = 500;
 
 	function Syncer(targets, queue) {
 		targets = targets.split(",");
@@ -95,7 +97,7 @@
 			var pack = createPackage();
 
 			for (i=0; i<list.length; ++i) {
-				var entry = list[i].split(": ");
+				var entry = list[i].split(SEPARATOR);
 				var action = entry[0];
 				var localPath = entry[1];
 
@@ -115,7 +117,7 @@
 			installPackage(pack);
 		};
 
-		setInterval(this.process, SYNCER_INTERVAL);
+		setInterval(this.process, syncerInterval);
 	}
 
 	function Watcher(pathToWatch, queue) {
@@ -124,24 +126,26 @@
 			return;
 		}
 
-		console.log("Watching: " + pathToWatch);
+		console.log("Watching: " + pathToWatch + ". Update interval: " + syncerInterval + " ms.");
 		watch(pathToWatch, function(localPath) {
+			// Unify path.
 			localPath = localPath.replace("/\\/g", "/");
+
+			// "jcr_root" must not be in a hidden folder.
 			if (/\/\..*jcr_root/.test(localPath) === false) {
 				var action = fs.existsSync(localPath) ? "U" : "D";
-				queue.push(action + ": " + localPath);
+				queue.push(action + SEPARATOR + localPath);
 			}
 		});
 	}
 
 	function main() {
-		var help = "Usage: slingsync.js -t targets [-i interval] path_to_watch";
 		var args = minimist(process.argv.slice(2));
 		if (!args.t || !args._[0]) {
-			console.log(help);
+			console.log(HELP);
 			return;
 		}
-
+		syncerInterval = args.i || syncerInterval;
 		new Watcher(args._[0], queue);
 		new Syncer(args.t, queue);
 	}
