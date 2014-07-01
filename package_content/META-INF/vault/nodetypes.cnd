@@ -1,0 +1,92 @@
+<'sling'='http://sling.apache.org/jcr/sling/1.0'>
+<'nt'='http://www.jcp.org/jcr/nt/1.0'>
+<'cq'='http://www.day.com/jcr/cq/1.0'>
+<'rep'='internal'>
+<'mix'='http://www.jcp.org/jcr/mix/1.0'>
+
+[sling:Folder] > nt:folder
+  - * (undefined)
+  - * (undefined) multiple
+  + * (nt:base) = sling:Folder version
+
+[cq:InplaceEditingConfig] > nt:unstructured
+  orderable
+  - editorType (string)
+  - configPath (string)
+  - active (boolean)
+  + config (nt:unstructured) = nt:unstructured
+
+[cq:Panel] > cq:Widget
+  orderable
+
+[cq:Widget] > nt:unstructured
+  orderable
+  - name (string)
+  - xtype (string)
+  - title (string)
+  + items (nt:base) = cq:WidgetCollection
+
+[cq:WidgetCollection] > nt:unstructured
+  orderable
+  + * (cq:Widget) = cq:Widget
+
+[rep:RepoAccessControllable]
+  mixin
+  + rep:repoPolicy (rep:Policy) protected ignore
+
+[cq:Dialog] > cq:Widget
+  orderable
+
+[sling:ResourceSuperType]
+  mixin
+  - sling:resourceSuperType (string)
+
+[cq:EditListenersConfig]
+  - afteredit (string)
+  - aftermove (string)
+  - afterremove (string)
+  - afterinsert (string)
+  - * (undefined)
+  - afterdelete (string)
+  - * (undefined) multiple
+  - aftercreate (string)
+  + * (nt:base) = nt:base multiple version
+
+[cq:EditConfig] > nt:hierarchyNode, nt:unstructured
+  orderable
+  - cq:dialogMode (string) < 'auto', 'floating', 'inline'
+  - cq:emptyText (string)
+  - cq:layout (string) < 'editbar', 'rollover', 'auto'
+  - cq:inherit (boolean)
+  - cq:actions (string) multiple
+  + cq:inplaceEditing (cq:InplaceEditingConfig) = cq:InplaceEditingConfig
+  + cq:actionConfigs (nt:base) = nt:unstructured
+  + cq:listeners (nt:base) = cq:EditListenersConfig
+  + cq:formParameters (nt:base) = nt:unstructured
+  + cq:dropTargets (nt:base) = nt:unstructured
+
+[cq:TabPanel] > cq:Panel
+  orderable
+  - activeTab (long)
+
+[cq:Component] > mix:title, nt:folder, sling:ResourceSuperType
+  - dialogPath (string)
+  - cq:noDecoration (boolean)
+  - allowedChildren (string) multiple
+  - * (undefined)
+  - cq:isContainer (boolean)
+  - allowedParents (string) multiple
+  - * (undefined) multiple
+  - cq:cellName (string)
+  - componentGroup (string)
+  + dialog (nt:base) = nt:unstructured
+  + design_dialog (nt:base) = nt:unstructured
+  + cq:htmlTag (nt:base) = nt:unstructured
+  + * (nt:base) = nt:base multiple version
+  + cq:infoProviders (nt:base) = nt:unstructured
+  + cq:editConfig (cq:EditConfig) = cq:EditConfig
+  + icon.png (nt:file)
+  + cq:childEditConfig (cq:EditConfig) = cq:EditConfig
+  + thumbnail.png (nt:file)
+  + virtual (nt:base) = sling:Folder
+
