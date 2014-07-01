@@ -1,6 +1,6 @@
 {
 	"name": "aemsync",
-	"version": "0.0.2",
+	"version": "0.0.3",
 	"description": "Adobe AEM Synchronization Tool",
 	"author": "Michal Kochel <gavoja@gmail.com>",
 	"keywords": [

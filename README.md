@@ -7,8 +7,7 @@ Adobe AEM Synchronization Tool
 
 With [npm](http://npmjs.org) do:
 
-    $ npm install aemsync
-
+    $ npm install aemsync -g
 
 ### Usage
 
