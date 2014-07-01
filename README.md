@@ -13,7 +13,7 @@ With [npm](http://npmjs.org) do:
 ### Usage
 
 ```
-node aemsync.js -t targets [-i interval] path_to_watch
+aemsync -t targets [-i interval] path_to_watch
 
 -t   Comma separated list of hosts.
 -i   Update interval; default 500 ms.
