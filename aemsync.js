@@ -22,12 +22,12 @@
 	function Syncer(targets, queue) {
 		targets = targets.split(",");
 
-		var uploadFile = function(pack, localPath, repoPath, filter) {
+		var uploadFile = function(pack, localPath, repoPath, filter, includeExclude) {
 			if (fs.lstatSync(localPath).isFile()) {
 				// TODO: Add support for java classes.
 				console.log("Upload: " + repoPath);
 				pack.zip.addLocalFile(localPath, path.dirname(repoPath));
-				pack.filters += '<filter root="' + filter + '"/>\n';
+				pack.filters += '<filter root="' + filter + '">' + includeExclude + '</filter>\n';
 			}
 		};
 
@@ -101,11 +101,20 @@
 				var action = entry[0];
 				var localPath = entry[1];
 				var repoPath = localPath.substring(localPath.indexOf("jcr_root"));
-				var filter = repoPath.substring(8).replace(/(\.xml$)|(.dir)/g, "");
 
+				// TODO: Clean up filter handling.
+				// TODO: Fix ".content.xml" deletion.
+				var filter = repoPath.substring(8).replace(/(\.xml$)|(.dir)/g, "");
+				var includeExclude = "";
+				if (/\/\.content$/.test(filter)) {
+					filter = filter.substring(0, filter.length - 9);
+					includeExclude = '<exclude pattern="' + filter + '/.*" /><include pattern="' + filter + '/jcr:content" />';
+				}
+//				console.log("fi: ", filter);
+//				console.log("ix: ", includeExclude);
 				switch(action) {
-					case "U": uploadFile(pack, localPath, repoPath, filter); break;
-					case "D": deleteFile(pack, localPath, repoPath, filter); break;
+					case "U": uploadFile(pack, localPath, repoPath, filter, includeExclude); break;
+					case "D": deleteFile(pack, localPath, repoPath, filter, includeExclude); break;
 				}
 			}
 
