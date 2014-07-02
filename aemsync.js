@@ -39,7 +39,7 @@
 
 		var createPackage = function() {
 			var zip = new AdmZip();
-			zip.addLocalFolder("package_content");
+			zip.addLocalFolder(__dirname + "/package_content");
 			return {zip: zip, filters: "" } ;
 		};
 

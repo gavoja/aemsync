@@ -21,5 +21,5 @@ aemsync -t targets [-i interval] path_to_watch
 ### Example
 
 ```
-node aemsync.js -t http://admin:admin@localhost:4502 ~/workspace/my_project
+aemsync -t http://admin:admin@localhost:4502 ~/workspace/my_project
 ```
