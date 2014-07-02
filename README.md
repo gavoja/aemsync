@@ -7,15 +7,17 @@ Adobe AEM Synchronization Tool
 
 With [npm](http://npmjs.org) do:
 
-    $ npm install aemsync -g
+```
+npm install aemsync -g
+```
 
 ### Usage
 
 ```
 aemsync -t targets [-i interval] path_to_watch
 
--t   Comma separated list of hosts.
--i   Update interval; default 500 ms.
+-t: Comma separated list of hosts.
+-i: Update interval; default 500 ms.
 ```
 
 ### Example

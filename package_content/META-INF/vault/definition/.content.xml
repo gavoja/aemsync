@@ -2,5 +2,5 @@
 <jcr:root xmlns:vlt="http://www.day.com/jcr/vault/1.0" xmlns:jcr="http://www.jcp.org/jcr/1.0" xmlns:nt="http://www.jcp.org/jcr/nt/1.0"
 	jcr:primaryType="vlt:PackageDefinition"
 	group="my_packages"
-	name="slingsync">
+	name="aemsync">
 </jcr:root>

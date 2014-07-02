@@ -7,7 +7,6 @@
 	var fs = require("fs");
 	var path = require('path');
 	var parseUrl = require('url').parse;
-
 	var watch = require("node-watch");
 	var minimist = require('minimist');
 	var AdmZip = require("adm-zip");
@@ -34,7 +33,7 @@
 
 		var deleteFile = function(pack, localPath, repoPath, filter) {
 			console.log("Delete: " + repoPath);
-			pack.filters += '<filter root="' + filter + '"/>\n';
+			pack.filters += '<filter mode="replace" root="' + filter + '"/>\n';
 		};
 
 		var createPackage = function() {
@@ -55,7 +54,7 @@
 			}
 			pack.filters = '<?xml version="1.0" encoding="UTF-8"?>\n<workspaceFilter version="1.0">\n' + pack.filters + '</workspaceFilter>';
 			pack.zip.addFile("META-INF/vault/filter.xml", new Buffer(pack.filters));
-			var zipPath = os.tmpdir() + "/slingsync.zip";
+			var zipPath = os.tmpdir() + "/aemsync.zip";
 			// TODO: Make in-memory zip.
 			pack.zip.writeZip(zipPath);
 
@@ -69,7 +68,7 @@
 
 				var form = new FormData();
 				form.append('file', fs.createReadStream(zipPath));
-				form.append('name', 'slingsync');
+				form.append('name', 'aemsync');
 				form.append('force', 'true');
 				form.append('install', 'true');
 				form.submit(options, formSubmitCallback);
@@ -101,14 +100,9 @@
 				var entry = list[i].split(SEPARATOR);
 				var action = entry[0];
 				var localPath = entry[1];
+				var repoPath = localPath.substring(localPath.indexOf("jcr_root"));
+				var filter = repoPath.substring(8).replace(/(\.xml$)|(.dir)/g, "");
 
-				var j = localPath.indexOf("jcr_root");
-				if (j === -1) {
-					continue;
-				}
-
-				var repoPath = localPath.substring(j);
-				var filter = repoPath.substring(8).replace(/(\.xml)|(.dir)/g, "");
 				switch(action) {
 					case "U": uploadFile(pack, localPath, repoPath, filter); break;
 					case "D": deleteFile(pack, localPath, repoPath, filter); break;
@@ -132,8 +126,8 @@
 			// Unify path.
 			localPath = localPath.replace("/\\/g", "/");
 
-			// "jcr_root" must not be in a hidden folder.
-			if (/\/\..*jcr_root/.test(localPath) === false) {
+			// Path must contain "jcr_root" and must not be in a hidden folder.
+			if (/^((?!\/\.).)*\/jcr_root\/.*$/.test(localPath)) {
 				var action = fs.existsSync(localPath) ? "U" : "D";
 				queue.push(action + SEPARATOR + localPath);
 			}
