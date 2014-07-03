@@ -1,5 +1,4 @@
-#!/usr/bin/env node
-/*global console, require, process, setInterval, Buffer */
+/*global console, require, process, setInterval, Buffer, __dirname */
 (function () {
 	"use strict";
 
@@ -13,7 +12,6 @@
 	var FormData = require('form-data');
 
 	var HELP = "Usage: aemsync -t targets [-i interval] path_to_watch\nWebsite: https://github.com/gavoja/aemsync";
-	var SEPARATOR = ":";
 
 	var syncerInterval = 500;
 	var queue = [];
@@ -22,42 +20,7 @@
 	function Syncer(targets, queue) {
 		targets = targets.split(",");
 
-		var uploadFile = function(pack, localPath, repoPath, filter, includeExclude) {
-			if (fs.lstatSync(localPath).isFile()) {
-				// TODO: Add support for java classes.
-				console.log("Upload: " + repoPath);
-				pack.zip.addLocalFile(localPath, path.dirname(repoPath));
-				pack.filters += '<filter root="' + filter + '">' + includeExclude + '</filter>\n';
-			}
-		};
-
-		var deleteFile = function(pack, localPath, repoPath, filter) {
-			console.log("Delete: " + repoPath);
-			pack.filters += '<filter mode="replace" root="' + filter + '"/>\n';
-		};
-
-		var createPackage = function() {
-			var zip = new AdmZip();
-			zip.addLocalFolder(__dirname + "/package_content");
-			return {zip: zip, filters: "" } ;
-		};
-
-		var formSubmitCallback = function(err, res) {
-			var msg = res ? "  " + res.req._headers.host + " -> " + res.statusCode : "  " + this._headers.host + " -> " + err.code;
-			console.log(msg);
-			lock -= 1;
-		};
-
-		var installPackage = function(pack) {
-			if (!pack.filters) {
-				return;
-			}
-			pack.filters = '<?xml version="1.0" encoding="UTF-8"?>\n<workspaceFilter version="1.0">\n' + pack.filters + '</workspaceFilter>';
-			pack.zip.addFile("META-INF/vault/filter.xml", new Buffer(pack.filters));
-			var zipPath = os.tmpdir() + "/aemsync.zip";
-			// TODO: Make in-memory zip.
-			pack.zip.writeZip(zipPath);
-
+		var sendForm = function(zipPath) {
 			for (var i=0; i<targets.length; ++i) {
 				var params = parseUrl(targets[i]);
 				var options = {};
@@ -73,6 +36,29 @@
 				form.append('install', 'true');
 				form.submit(options, formSubmitCallback);
 			}
+		};
+
+		var formSubmitCallback = function(err, res) {
+			var msg = res ? "  " + res.req._headers.host + " -> " + res.statusCode : "  " + this._headers.host + " -> " + err.code;
+			console.log(msg);
+			lock -= 1;
+		};
+
+		var createPackage = function() {
+			var zip = new AdmZip();
+			zip.addLocalFolder(__dirname + "/package_content");
+			return {zip: zip, filters: "" };
+		};
+
+		var installPackage = function(pack) {
+			// Add filters.
+			pack.filters = '<?xml version="1.0" encoding="UTF-8"?>\n<workspaceFilter version="1.0">\nFILTERS</workspaceFilter>'.replace(/FILTERS/g, pack.filters);
+			pack.zip.addFile("META-INF/vault/filter.xml", new Buffer(pack.filters));
+
+			// TODO: Make in-memory zip.
+			var zipPath = os.tmpdir() + "/aemsync.zip";
+			pack.zip.writeZip(zipPath);
+			sendForm(zipPath);
 		};
 
 		this.process = function() {
@@ -97,25 +83,26 @@
 			var pack = createPackage();
 
 			for (i=0; i<list.length; ++i) {
-				var entry = list[i].split(SEPARATOR);
-				var action = entry[0];
-				var localPath = entry[1];
-				var repoPath = localPath.substring(localPath.indexOf("jcr_root"));
+				var localPath = list[i];
 
-				// TODO: Clean up filter handling.
-				// TODO: Fix ".content.xml" deletion.
-				var filter = repoPath.substring(8).replace(/(\.xml$)|(.dir)/g, "");
-				var includeExclude = "";
-				if (/\/\.content$/.test(filter)) {
-					filter = filter.substring(0, filter.length - 9);
-					includeExclude = '<exclude pattern="' + filter + '/.*" /><include pattern="' + filter + '/jcr:content" />';
+				var repoPath = localPath.substring(localPath.indexOf("jcr_root"));
+				var filterItem = repoPath.substring(8).replace(/\.xml$/g, "").replace(/\.content$/g, "jcr:content");
+				var filterParent = path.dirname(filterItem);
+				var zipPath = path.dirname(repoPath);
+
+				// Add file to zip if exists.
+				if (fs.existsSync(localPath)) {
+					console.log("Update: ", repoPath);
+					pack.zip.addLocalFile(localPath, zipPath);
+					var filter = '<filter root="PARENT"><exclude pattern="PARENT/.*" /><include pattern="ITEM" /></filter>\n';
+					pack.filters += filter.replace(/PARENT/g, filterParent).replace(/ITEM/g, filterItem);
+				} else {
+					console.log("Delete: ", repoPath);
+					pack.filters += '<filter root="ITEM" />\n'.replace(/ITEM/g, filterItem);
 				}
-//				console.log("fi: ", filter);
-//				console.log("ix: ", includeExclude);
-				switch(action) {
-					case "U": uploadFile(pack, localPath, repoPath, filter, includeExclude); break;
-					case "D": deleteFile(pack, localPath, repoPath, filter, includeExclude); break;
-				}
+
+				// TODO: Handle .content.xml deletion.
+				// TODO: Handle ".dir" folders.
 			}
 
 			installPackage(pack);
@@ -132,13 +119,12 @@
 
 		console.log("Watching: " + pathToWatch + ". Update interval: " + syncerInterval + " ms.");
 		watch(pathToWatch, function(localPath) {
-			// Unify path.
+			// Use slashes only.
 			localPath = localPath.replace("/\\/g", "/");
 
 			// Path must contain "jcr_root" and must not be in a hidden folder.
 			if (/^((?!\/\.).)*\/jcr_root\/.*$/.test(localPath)) {
-				var action = fs.existsSync(localPath) ? "U" : "D";
-				queue.push(action + SEPARATOR + localPath);
+				queue.push(localPath);
 			}
 		});
 	}
