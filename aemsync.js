@@ -90,15 +90,17 @@
 				var filterParent = path.dirname(filterItem);
 				var zipPath = path.dirname(repoPath);
 
+				// Deletes items from zip.
+				if (fs.existsSync(localPath) === false) {
+					console.log("Delete: ", repoPath);
+					pack.filters += '<filter root="ITEM" />\n'.replace(/ITEM/g, filterItem);
+
 				// Add file to zip if exists.
-				if (fs.existsSync(localPath)) {
+				} else if (fs.lstatSync(localPath).isFile()) {
 					console.log("Update: ", repoPath);
 					pack.zip.addLocalFile(localPath, zipPath);
 					var filter = '<filter root="PARENT"><exclude pattern="PARENT/.*" /><include pattern="ITEM" /></filter>\n';
 					pack.filters += filter.replace(/PARENT/g, filterParent).replace(/ITEM/g, filterItem);
-				} else {
-					console.log("Delete: ", repoPath);
-					pack.filters += '<filter root="ITEM" />\n'.replace(/ITEM/g, filterItem);
 				}
 
 				// TODO: Handle .content.xml deletion.
