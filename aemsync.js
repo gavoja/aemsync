@@ -56,9 +56,22 @@
 			pack.zip.addFile("META-INF/vault/filter.xml", new Buffer(pack.filters));
 
 			// TODO: Make in-memory zip.
-			var zipPath = os.tmpdir() + "/aemsync.zip";
+//			var zipPath = os.tmpdir() + "/aemsync.zip";
+			var zipPath = __dirname + "/aemsync.zip";
 			pack.zip.writeZip(zipPath);
 			sendForm(zipPath);
+		};
+
+		var getZipPath = function(filePath) {
+			return filePath.replace(/.*\/(jcr_root\/.*)/, "$1");
+		};
+//
+//		var getZipPath = function(filePath) {
+//			return path.dirname(filePath.replace(/.*\/(jcr_root\/.*)/, "$1"));
+//		};
+
+		var getFilterPath = function(filePath) {
+			return filePath.replace(/(.*jcr_root)|(\.xml$)|(\.dir)/g, "").replace(/\.content$/g, "jcr:content");
 		};
 
 		this.process = function() {
@@ -83,25 +96,37 @@
 			var pack = createPackage();
 
 			for (i=0; i<list.length; ++i) {
-				var localPath = list[i];
+				var localFilePath = list[i];
+				var filterFilePath = getFilterPath(localFilePath);
 
-				var repoPath = localPath.substring(localPath.indexOf("jcr_root"));
-				var filterItem = repoPath.substring(8).replace(/\.xml$/g, "").replace(/\.content$/g, "jcr:content");
-				var filterParent = path.dirname(filterItem);
-				var zipPath = path.dirname(repoPath);
+				// Add file to zip if exists and if a file.
+				if (fs.existsSync(localFilePath) && fs.lstatSync(localFilePath).isFile()) {
+					console.log("Update: ", filterFilePath);
+					pack.zip.addLocalFile(localFilePath, path.dirname(getZipPath(localFilePath)));
+					var filter = '<filter root="PARENT"><exclude pattern="PARENT/.*" /><include pattern="ITEM" /></filter>\n';
+					pack.filters += filter.replace(/PARENT/g, path.dirname(filterFilePath)).replace(/ITEM/g, filterFilePath);
+
+					// Add extra file if ".dir" path detected.
+					var localExtraFilePath = localFilePath.replace(/\.dir.*/, "");
+					if (localFilePath !== localExtraFilePath && fs.existsSync(localExtraFilePath)) {
+						pack.zip.addLocalFile(localExtraFilePath, path.dirname(getZipPath(localExtraFilePath)));
+					}
+
+					// add extra ".dir" folder if exist.
+					var localDirPath = localFilePath + ".dir";
+					console.log("local dir path: " +  getZipPath(localDirPath));
+					if (fs.existsSync(localDirPath) && fs.lstatSync(localDirPath).isDirectory()) {
+						pack.zip.addLocalFolder(localDirPath, getZipPath(localDirPath));
+					}
 
 				// Deletes items from zip.
-				if (fs.existsSync(localPath) === false) {
-					console.log("Delete: ", repoPath);
-					pack.filters += '<filter root="ITEM" />\n'.replace(/ITEM/g, filterItem);
-
-				// Add file to zip if exists.
-				} else if (fs.lstatSync(localPath).isFile()) {
-					console.log("Update: ", repoPath);
-					pack.zip.addLocalFile(localPath, zipPath);
-					var filter = '<filter root="PARENT"><exclude pattern="PARENT/.*" /><include pattern="ITEM" /></filter>\n';
-					pack.filters += filter.replace(/PARENT/g, filterParent).replace(/ITEM/g, filterItem);
+				} else {
+					console.log("Delete: ", filterFilePath);
+					pack.filters += '<filter root="FILE" />\n'.replace(/FILE/g, filterFilePath);
 				}
+
+
+				console.log(pack.filters);
 
 				// TODO: Handle .content.xml deletion.
 				// TODO: Handle ".dir" folders.
@@ -124,7 +149,7 @@
 			// Use slashes only.
 			localPath = localPath.replace("/\\/g", "/");
 
-			// Path must contain "jcr_root" and must not be in a hidden folder.
+			// Path must contain "jcr_root" outside hidden folder.
 			if (/^((?!\/\.).)*\/jcr_root\/.*$/.test(localPath)) {
 				queue.push(localPath);
 			}
