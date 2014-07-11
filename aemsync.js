@@ -50,6 +50,7 @@
 			res.on("data", function(chunk) {
 				var textChunk = this.req._headers.host + " " + decoder.write(chunk);
 				if (textChunk.match(/(^.+ \/.*)|(code="500")/)) {
+					// TODO: Better error handling (https://github.com/gavoja/aemsync/issues/3)
 					process.stdout.write(textChunk);
 				}
 			});
@@ -92,13 +93,13 @@
 			pack.filters = '<?xml version="1.0" encoding="UTF-8"?>\n<workspaceFilter version="1.0">\nFILTERS</workspaceFilter>'.replace(/FILTERS/g, pack.filters);
 			pack.zip.addFile("META-INF/vault/filter.xml", new Buffer(pack.filters));
 
-			// TODO: Make in-memory zip.
+			// TODO: Make in-memory zip perhaps?
 			var zipPath = os.tmpdir() + "/aemsync.zip";
 			pack.zip.writeZip(zipPath);
 			sendForm(zipPath);
 		};
 
-		// TODO: Simplify.
+		// TODO: Simplify (https://github.com/gavoja/aemsync/issues/4)
 		var addFileInPackage = function(pack, filePath) {
 			var filterFilePath = getFilterPath(filePath);
 			var dirFilePath = getDirFilePath(filePath);
@@ -125,7 +126,7 @@
 			}
 		};
 
-		// TODO: Simplify.
+		// TODO: Simplify (https://github.com/gavoja/aemsync/issues/4)
 		var deleteFileInPackage = function(pack, filePath) {
 			var filterFilePath = getFilterPath(filePath);
 			var dirFilePath = getDirFilePath(filePath);
