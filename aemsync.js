@@ -17,7 +17,6 @@
 
 	var syncerInterval = 500;
 	var queue = [];
-	var lock = 0;
 
 	function Syncer(targets, queue) {
 		targets = targets.split(",");
@@ -42,7 +41,6 @@
 		var formSubmitCallback = function(err, res) {
 			if (!res) {
 				console.log(this._headers.host + " " + err.code);
-				lock -=1;
 				return;
 			}
 
@@ -54,8 +52,6 @@
 					process.stdout.write(textChunk);
 				}
 			});
-
-			lock -= 1;
 		};
 
 		var getZipPath = function(filePath) {
@@ -152,32 +148,22 @@
 		};
 
 		this.process = function() {
-			var i, list = [];
+			var i, dict = {};
 
-			// Lock.
-			if (lock > 0 || queue.length === 0) {
+			// Enqueue items (dictionary takes care of duplicates).
+			while((i = queue.pop())) {
+				dict[i] = true;
+			}
+
+			if (Object.keys(dict).length === 0) {
 				return;
 			}
-			lock = targets.length;
-
-			// Enqueue items.
-			while((i = queue.pop())) {
-				list.push(i);
-			}
-
-			// Remove duplicates.
-			list = list.filter(function(elem, pos, self) {
-				return self.indexOf(elem) == pos;
-			});
 
 			var pack = createPackage();
-			for (i=0; i<list.length; ++i) {
-				var filePath = list[i];
-
+			for (var filePath in dict) {
 				if (!fs.existsSync(filePath)) {
 					deleteFileInPackage(pack, filePath);
-				}
-				else if (fs.lstatSync(filePath).isFile()) {
+				} else if (fs.lstatSync(filePath).isFile()) {
 					addFileInPackage(pack, filePath);
 				}
 			}
@@ -195,11 +181,9 @@
 
 		console.log("Watching: " + pathToWatch + ". Update interval: " + syncerInterval + " ms.");
 		watch(pathToWatch, function(localPath) {
-			// Use slashes only.
+			// Include files on "jcr_root/xyz/..." path that's outside hidden or target folder.
 			localPath = localPath.replace("/\\/g", "/");
-
-			// Path must contain "jcr_root" outside hidden folder and must have at least one node after jcr_root.
-			if (/^((?!\/\.).)*\/jcr_root\/[^\/]*\/.*$/.test(localPath)) {
+			if (/^((?!(\/\.)|(\/target\/)).)*\/jcr_root\/[^\/]*\/.*$/.test(localPath)) {
 				queue.push(localPath);
 			}
 		});
