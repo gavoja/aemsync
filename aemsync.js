@@ -1,3 +1,4 @@
+/*jslint node: true*/
 /*global console, require, process, setInterval, Buffer, __dirname */
 (function () {
 	"use strict";
@@ -10,6 +11,7 @@
 	var minimist = require('minimist');
 	var AdmZip = require("adm-zip");
 	var FormData = require('form-data');
+	var StringDecoder = require('string_decoder').StringDecoder;
 
 	var HELP = "Usage: aemsync -t targets [-i interval] path_to_watch\nWebsite: https://github.com/gavoja/aemsync";
 
@@ -31,7 +33,6 @@
 
 				var form = new FormData();
 				form.append('file', fs.createReadStream(zipPath));
-				form.append('name', 'aemsync');
 				form.append('force', 'true');
 				form.append('install', 'true');
 				form.submit(options, formSubmitCallback);
@@ -39,8 +40,24 @@
 		};
 
 		var formSubmitCallback = function(err, res) {
-			var msg = res ? "  " + res.req._headers.host + " -> " + res.statusCode : "  " + this._headers.host + " -> " + err.code;
-			console.log(msg);
+			if (!res) {
+				console.log(this._headers.host + " " + err.code);
+				lock -=1;
+				return;
+			}
+
+//			console.log("  " + res.req._headers.host + " -> " + res.statusCode);
+			var decoder = new StringDecoder('utf8');
+			res.on("data", function(chunk) {
+
+//				var host = this.req._headers.host;
+				var textChunk = this.req._headers.host + " " + decoder.write(chunk);
+				if (textChunk.match(/(^.+ \/.*)|(code="500")/)) {
+//					console.log();
+					process.stdout.write(textChunk);
+				}
+			});
+
 			lock -= 1;
 		};
 
@@ -65,13 +82,25 @@
 		var getZipPath = function(filePath) {
 			return filePath.replace(/.*\/(jcr_root\/.*)/, "$1");
 		};
-//
-//		var getZipPath = function(filePath) {
-//			return path.dirname(filePath.replace(/.*\/(jcr_root\/.*)/, "$1"));
-//		};
 
 		var getFilterPath = function(filePath) {
 			return filePath.replace(/(.*jcr_root)|(\.xml$)|(\.dir)/g, "").replace(/\.content$/g, "jcr:content");
+		};
+
+		var getDirFilePath = function(filePath) {
+			var dataFilePath = filePath.replace(/\.dir.*/, "");
+			if (filePath !== dataFilePath && fs.existsSync(dataFilePath)) {
+				return dataFilePath;
+			}
+			return null;
+		};
+
+		var getDirFolderPath = function(filePath) {
+			var dirPath = filePath + ".dir";
+			if (fs.existsSync(dirPath) && fs.lstatSync(dirPath).isDirectory()) {
+				return dirPath;
+			}
+			return null;
 		};
 
 		this.process = function() {
@@ -81,7 +110,7 @@
 			if (lock > 0 || queue.length === 0) {
 				return;
 			}
-			lock = targets.length;
+//			lock = targets.length;
 
 			// Enqueue items.
 			while((i = queue.pop())) {
@@ -96,44 +125,52 @@
 			var pack = createPackage();
 
 			for (i=0; i<list.length; ++i) {
-				var localFilePath = list[i];
-				var filterFilePath = getFilterPath(localFilePath);
+				var filePath = list[i];
+				var filterFilePath = getFilterPath(filePath);
+				var isDelete = !fs.existsSync(filePath);
+//				var isDir = filePath.indexOf(".dir/") != -1;
+				var isDotContent = filePath.indexOf("/.content.xml") != -1;
+				var dirFilePath = getDirFilePath(filePath); // Corresponding file for ".dir".
+				var dirFolderPath = getDirFolderPath(filePath);
+
+				if (isDelete) {
+					console.log("delete");
+					// Remove .content.xml
+					if (isDotContent) {
+//						zip.addLocalFolder(dirPath, path.
+
+					// Remove everything except .content.xml.
+					} else {
+						console.log("Delete: ", filterFilePath);
+						pack.filters += '<filter root="FILE" />\n'.replace(/FILE/g, filterFilePath);
+					}
+				}
 
 				// Add file to zip if exists and if a file.
-				if (fs.existsSync(localFilePath) && fs.lstatSync(localFilePath).isFile()) {
-					console.log("Update: ", filterFilePath);
-					pack.zip.addLocalFile(localFilePath, path.dirname(getZipPath(localFilePath)));
+				else if (fs.lstatSync(filePath).isFile()) {
+//					console.log("Update: ", filterFilePath);
+					pack.zip.addLocalFile(filePath, path.dirname(getZipPath(filePath)));
 					var filter = '<filter root="PARENT"><exclude pattern="PARENT/.*" /><include pattern="ITEM" /></filter>\n';
 					pack.filters += filter.replace(/PARENT/g, path.dirname(filterFilePath)).replace(/ITEM/g, filterFilePath);
 
-					// Add extra file if ".dir" path detected.
-					var localExtraFilePath = localFilePath.replace(/\.dir.*/, "");
-					if (localFilePath !== localExtraFilePath && fs.existsSync(localExtraFilePath)) {
-						pack.zip.addLocalFile(localExtraFilePath, path.dirname(getZipPath(localExtraFilePath)));
+					// Add data file.
+					if (dirFilePath) {
+						pack.zip.addLocalFile(dirFilePath, path.dirname(getZipPath(dirFilePath)));
 					}
 
-					// add extra ".dir" folder if exist.
-					var localDirPath = localFilePath + ".dir";
-					console.log("local dir path: " +  getZipPath(localDirPath));
-					if (fs.existsSync(localDirPath) && fs.lstatSync(localDirPath).isDirectory()) {
-						pack.zip.addLocalFolder(localDirPath, getZipPath(localDirPath));
+					// Add ".dir" folder.
+					if (dirFolderPath) {
+						pack.zip.addLocalFolder(dirFolderPath, getZipPath(dirFolderPath));
 					}
-
-				// Deletes items from zip.
-				} else {
-					console.log("Delete: ", filterFilePath);
-					pack.filters += '<filter root="FILE" />\n'.replace(/FILE/g, filterFilePath);
 				}
 
-
-				console.log(pack.filters);
-
-				// TODO: Handle .content.xml deletion.
-				// TODO: Handle ".dir" folders.
 			}
 
+//			console.log(pack.filters);
 			installPackage(pack);
 		};
+
+
 
 		setInterval(this.process, syncerInterval);
 	}
@@ -149,8 +186,8 @@
 			// Use slashes only.
 			localPath = localPath.replace("/\\/g", "/");
 
-			// Path must contain "jcr_root" outside hidden folder.
-			if (/^((?!\/\.).)*\/jcr_root\/.*$/.test(localPath)) {
+			// Path must contain "jcr_root" outside hidden folder and must have at least one node after jcr_root.
+			if (/^((?!\/\.).)*\/jcr_root\/[^\/]*\/.*$/.test(localPath)) {
 				queue.push(localPath);
 			}
 		});
