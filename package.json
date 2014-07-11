@@ -1,6 +1,6 @@
 {
 	"name": "aemsync",
-	"version": "0.0.9",
+	"version": "0.1.0",
 	"description": "Adobe AEM Synchronization Tool",
 	"author": "Michal Kochel <gavoja@gmail.com>",
 	"keywords": [
@@ -29,6 +29,3 @@
  	},
 	"license": "WTFPL 2"
 }
-
-
-
