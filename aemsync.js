@@ -63,8 +63,37 @@
 
 		var createPackage = function() {
 			var zip = new AdmZip();
-			zip.addLocalFolder(__dirname + "/package_content");
+			zip.addLocalFolder(__dirname + "/data/package_content");
 			return {zip: zip, filters: "" };
+		};
+
+//		var removeFileFromPackage = function(package, filePath) {
+//		};
+
+		var addFileToPackage = function(pack, filePath) {
+			var filterFilePath = getFilterPath(filePath);
+			var dirFilePath = getDirFilePath(filePath);
+			var dirFolderPath = getDirFolderPath(filePath);
+			var isDir = filePath.indexOf(".dir/") != -1;
+
+			// Change done inside .dir and there is no corresponding file.
+			if (isDir && !dirFilePath) {
+				return;
+			}
+
+			pack.zip.addLocalFile(filePath, path.dirname(getZipPath(filePath)));
+			var filter = '<filter root="PARENT"><exclude pattern="PARENT/.*" /><include pattern="ITEM" /><include pattern="ITEM/.*" /></filter>\n';
+			pack.filters += filter.replace(/PARENT/g, path.dirname(filterFilePath)).replace(/ITEM/g, filterFilePath);
+
+			// Add data file.
+			if (dirFilePath) {
+				pack.zip.addLocalFile(dirFilePath, path.dirname(getZipPath(dirFilePath)));
+			}
+
+			// Add ".dir" folder.
+			if (dirFolderPath) {
+				pack.zip.addLocalFolder(dirFolderPath, getZipPath(dirFolderPath));
+			}
 		};
 
 		var installPackage = function(pack) {
@@ -96,7 +125,7 @@
 		};
 
 		var getDirFolderPath = function(filePath) {
-			var dirPath = filePath + ".dir";
+			var dirPath = path.dirname(filePath) + ".dir";
 			if (fs.existsSync(dirPath) && fs.lstatSync(dirPath).isDirectory()) {
 				return dirPath;
 			}
@@ -110,7 +139,7 @@
 			if (lock > 0 || queue.length === 0) {
 				return;
 			}
-//			lock = targets.length;
+			lock = targets.length;
 
 			// Enqueue items.
 			while((i = queue.pop())) {
@@ -134,9 +163,33 @@
 				var dirFolderPath = getDirFolderPath(filePath);
 
 				if (isDelete) {
-					console.log("delete");
 					// Remove .content.xml
 					if (isDotContent) {
+						console.log("delete .content.xml");
+
+												// Add data file.
+
+
+							// TODO: Just add dirFile.
+//							pack.zip.addLocalFile(dirFilePath, path.dirname(getZipPath(dirFilePath)));
+//							pack.filters += '<filter root="FILE" />\n'.replace(/FILE/g, path.dirname(filterFilePath));
+
+
+						var folderPath = path.dirname(filePath);
+
+						if (dirFilePath) {
+							pack.zip.addLocalFile(dirFilePath, path.dirname(getZipPath(dirFilePath)));
+							pack.zip.addLocalFile(__dirname + "/data/nt_file/.content.xml" , getZipPath(folderPath));
+						} else {
+							pack.zip.addLocalFile(__dirname + "/data/nt_folder/.content.xml" , getZipPath(folderPath));
+						}
+//						pack.filters += '<filter root="FILE" />\n'.replace(/FILE/g, path.dirname(filterFilePath));
+
+						var filter = '<filter root="FILE"><exclude pattern="FILE/.*" /><include pattern="FILE/jcr:content" /></filter>\n';
+						pack.filters += filter.replace(/FILE/g, path.dirname(filterFilePath));
+
+
+
 //						zip.addLocalFolder(dirPath, path.
 
 					// Remove everything except .content.xml.
@@ -148,25 +201,12 @@
 
 				// Add file to zip if exists and if a file.
 				else if (fs.lstatSync(filePath).isFile()) {
-//					console.log("Update: ", filterFilePath);
-					pack.zip.addLocalFile(filePath, path.dirname(getZipPath(filePath)));
-					var filter = '<filter root="PARENT"><exclude pattern="PARENT/.*" /><include pattern="ITEM" /></filter>\n';
-					pack.filters += filter.replace(/PARENT/g, path.dirname(filterFilePath)).replace(/ITEM/g, filterFilePath);
-
-					// Add data file.
-					if (dirFilePath) {
-						pack.zip.addLocalFile(dirFilePath, path.dirname(getZipPath(dirFilePath)));
-					}
-
-					// Add ".dir" folder.
-					if (dirFolderPath) {
-						pack.zip.addLocalFolder(dirFolderPath, getZipPath(dirFolderPath));
-					}
+					addFileToPackage(pack, filePath);
 				}
 
 			}
 
-//			console.log(pack.filters);
+			console.log(pack.filters);
 			installPackage(pack);
 		};
 
