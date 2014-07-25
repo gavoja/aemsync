@@ -1,5 +1,4 @@
 /*jslint node: true*/
-/*global console, require, process, setInterval, Buffer, __dirname */
 (function () {
 	"use strict";
 
@@ -59,7 +58,7 @@
 		};
 
 		var getFilterPath = function(filePath) {
-			return filePath.replace(/(.*jcr_root)|(\.xml$)|(\.dir)/g, "").replace(/\.content$/g, "jcr:content");
+			return filePath.replace(/(.*jcr_root)|(\.xml$)|(\.dir)/g, "").replace(/\.content$/g, "jcr:content").replace(/_cq_editConfig$/g, "cq:editConfig");
 		};
 
 		var getDirFilePath = function(filePath) {
@@ -91,6 +90,7 @@
 
 			// TODO: Make in-memory zip perhaps?
 			var zipPath = os.tmpdir() + "/aemsync.zip";
+//			var zipPath = __dirname + "/aemsync.zip";
 			pack.zip.writeZip(zipPath);
 			sendForm(zipPath);
 		};
@@ -98,41 +98,46 @@
 		// TODO: Simplify (https://github.com/gavoja/aemsync/issues/4)
 		var addFileInPackage = function(pack, filePath) {
 			var filterFilePath = getFilterPath(filePath);
-			var dirFilePath = getDirFilePath(filePath);
+			var dirfilePath = getDirFilePath(filePath);
 
 			// Change done inside .dir and there is no corresponding file.
 			var isDir = filePath.indexOf(".dir/") != -1;
-			if (isDir && !dirFilePath) {
+			if (isDir && !dirfilePath) {
 				return;
 			}
 
-			pack.zip.addLocalFile(filePath, path.dirname(getZipPath(filePath)));
-			var filter = '<filter root="PARENT"><exclude pattern="PARENT/.*" /><include pattern="ITEM" /><include pattern="ITEM/.*" /></filter>\n';
-			pack.filters += filter.replace(/PARENT/g, path.dirname(filterFilePath)).replace(/ITEM/g, filterFilePath);
+			if (fs.lstatSync(filePath).isDirectory()) {
+				pack.zip.addLocalFolder(filePath, getZipPath(filePath));
+				pack.filters = '<filter root="ROOT"></filter>\n'.replace(/ROOT/g, filterFilePath);
+			} else {
+				pack.zip.addLocalFile(filePath, path.dirname(getZipPath(filePath)));
+				var filter = '<filter root="PARENT"><exclude pattern="PARENT/.*" /><include pattern="ITEM" /><include pattern="ITEM/.*" /></filter>\n';
+				pack.filters += filter.replace(/PARENT/g, path.dirname(filterFilePath)).replace(/ITEM/g, filterFilePath);
+			}
 
 			// Add data file.
-			if (dirFilePath) {
-				pack.zip.addLocalFile(dirFilePath, path.dirname(getZipPath(dirFilePath)));
+			if (dirfilePath) {
+				pack.zip.addLocalFile(dirfilePath, path.dirname(getZipPath(dirfilePath)));
 			}
 
 			// Add ".dir" folder.
-			var dirFolderPath = getDirFolderPath(filePath);
-			if (dirFolderPath) {
-				pack.zip.addLocalFolder(dirFolderPath, getZipPath(dirFolderPath));
+			var dirfolderPath = getDirFolderPath(filePath);
+			if (dirfolderPath) {
+				pack.zip.addLocalFolder(dirfolderPath, getZipPath(dirfolderPath));
 			}
 		};
 
 		// TODO: Simplify (https://github.com/gavoja/aemsync/issues/4)
 		var deleteFileInPackage = function(pack, filePath) {
 			var filterFilePath = getFilterPath(filePath);
-			var dirFilePath = getDirFilePath(filePath);
+			var dirfilePath = getDirFilePath(filePath);
 
 			// Remove .content.xml
 			var isDotContent = filePath.indexOf("/.content.xml") != -1;
 			if (isDotContent) {
 				var folderPath = path.dirname(filePath);
-				if (dirFilePath) {
-					pack.zip.addLocalFile(dirFilePath, path.dirname(getZipPath(dirFilePath)));
+				if (dirfilePath) {
+					pack.zip.addLocalFile(dirfilePath, path.dirname(getZipPath(dirfilePath)));
 					pack.zip.addLocalFile(__dirname + "/data/nt_file/.content.xml" , getZipPath(folderPath));
 				} else {
 					pack.zip.addLocalFile(__dirname + "/data/nt_folder/.content.xml" , getZipPath(folderPath));
@@ -163,7 +168,7 @@
 			for (var filePath in dict) {
 				if (!fs.existsSync(filePath)) {
 					deleteFileInPackage(pack, filePath);
-				} else if (fs.lstatSync(filePath).isFile()) {
+				} else {
 					addFileInPackage(pack, filePath);
 				}
 			}
