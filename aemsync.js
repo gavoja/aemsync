@@ -21,6 +21,7 @@
 	var NT_FOLDER = __dirname + "/data/nt_folder/.content.xml";
 	var RE_DIR = /^.*\.dir$/;
 	var RE_CONTENT = /.*\.content\.xml$/;
+	// Include files on "jcr_root/xyz/..." path that's outside hidden or target folder.
 	var RE_SAFE_PATH = /^((?!(\/\.)|(\/target\/)).)*\/jcr_root\/[^\/]*\/.*$/;
 
 	var syncerInterval = 500;
@@ -108,9 +109,6 @@
 
 			// TODO: Make in-memory zip perhaps?
 			var zipPath = os.tmpdir() + "/aemsync.zip";
-			if (DEBUG) {
-				zipPath = __dirname + "/aemsync.zip";
-			}
 			pack.zip.writeZip(zipPath);
 			sendForm(zipPath);
 		};
@@ -244,14 +242,14 @@
 	}
 
 	function Watcher(pathToWatch, queue) {
+		pathToWatch = path.resolve(path.normalize(pathToWatch));
 		if (!fs.existsSync(pathToWatch)) {
 			console.error("Invalid path: " + pathToWatch);
 			return;
 		}
 
 		watch(pathToWatch, function(localPath) {
-			// Include files on "jcr_root/xyz/..." path that's outside hidden or target folder.
-			localPath = localPath.replace("/\\/g", "/");
+			localPath = path.normalize(localPath);
 			debug("Change detected: " + localPath);
 			queue.push(localPath);
 		});
