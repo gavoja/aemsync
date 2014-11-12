@@ -263,17 +263,19 @@
 	/** Watches for file system changes. */
 	function Watcher(pathToWatch, queue) {
 		pathToWatch = path.resolve(path.normalize(pathToWatch));
-		if (!fs.existsSync(pathToWatch)) {
-			console.error("Invalid path: " + pathToWatch);
-			return;
-		}
+		fs.exists(pathToWatch, function(exists) {
+			if (!exists) {
+				console.error("Invalid path: " + pathToWatch);
+				return;
+			}
 
-		watch(pathToWatch, function(localPath) {
-			localPath = path.normalize(localPath);
-			debug("Change detected: " + localPath);
-			queue.push(localPath);
+			watch(pathToWatch, function(localPath) {
+				localPath = path.normalize(localPath);
+				debug("Change detected: " + localPath);
+				queue.push(localPath);
+			});
+			console.log("Watching: " + pathToWatch + ". Update interval: " + syncerInterval + " ms.");
 		});
-		console.log("Watching: " + pathToWatch + ". Update interval: " + syncerInterval + " ms.");
 	}
 
 	function main() {
