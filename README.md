@@ -26,4 +26,4 @@ aemsync -t targets [-i interval] path_to_watch
 aemsync -t http://admin:admin@localhost:4502 ~/workspace/my_project
 ```
 
-The path has to contain jcr_root folder. The script will pick up changes automatically and push them to the AEM instance.
+The path has to contain jcr_root folder. File system changes inside the folder will be picked up and pushed to AEM instance as a package. There is no vault dependency.
