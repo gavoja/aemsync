@@ -17,7 +17,7 @@ npm install aemsync -g
 aemsync -t targets [-i interval] -w path_to_watch
 
 -t: Comma separated list of hosts.
--i: Update interval; default 100 ms.
+-i: Update interval; default 300 ms.
 -d: Enable debug mode.
 ```
 
