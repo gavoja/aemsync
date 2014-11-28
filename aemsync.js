@@ -16,19 +16,19 @@
 	var FormData = require('form-data');
 
 	// Constants
-	var DEBUG = false;
-	var HELP = "Usage: aemsync -t targets [-i interval] itemto_watch\nWebsite: https://github.com/gavoja/aemsync";
+	var HELP = "Usage: aemsync -t targets [-i interval] -w path_to_watch\nWebsite: https://github.com/gavoja/aemsync";
 	var NT_FOLDER = __dirname + "/data/nt_folder/.content.xml";
 	var RE_DIR = /^.*\.dir$/;
 	var RE_CONTENT = /.*\.content\.xml$/;
 	// Include files on "jcr_root/xyz/..." path that's outside hidden or target folder.
 	var RE_SAFE_PATH = /^((?!(\/\.)|(\/target\/)).)*\/jcr_root\/[^\/]*\/.*$/;
-	var PACKAGE_PATH = DEBUG ? __dirname + "/aemsync.zip" : os.tmpdir() + "/aemsync.zip";
+	var ZIP_NAME = "aemsyncX.zip";
 
 	// Variables.
-	var syncerInterval = 100;
+	var syncerInterval = 300;
 	var queue = [];
 	var debugMode = false;
+	var maybeeExit = false;
 
 	/** Prints debug message. */
 	function debug(msg) {
@@ -65,8 +65,13 @@
 
 	/** Zip wrapper. */
 	function Zip() {
+		var zipPath = debugMode ? __dirname + "/aemsyncX.zip" : os.tmpdir() + "/aemsyncX.zip";
+		zipPath = zipPath.replace("X", Zip.zipCounter++);
 		var zip = archiver("zip");
-		var output = fs.createWriteStream(PACKAGE_PATH);
+		Zip.zipFiles[zipPath] = true;
+
+		debug("Creating archive: " + zipPath);
+		var output = fs.createWriteStream(zipPath);
 		zip.pipe(output);
 
 		this.addLocalFile = function(localPath, zipPath) {
@@ -80,9 +85,30 @@
 		};
 
 		this.save = function(callback) {
-			output.on("close", callback);
-			zip.finalize();
+			output.on("close", function() {
+				callback(zipPath, function() {
+					debug("Deleting archive: " + zipPath);
+					fs.unlinkSync(zipPath);
+					delete Zip.zipFiles[zipPath];
+				});
+			});
+			zip.finalize(); // Trigers the above.
 		};
+	}
+	Zip.zipCounter = 0;
+	Zip.zipFiles = {};
+
+	function handleExit() {
+		if (maybeeExit === false) {
+			return;
+		}
+
+		for (var zipPath in Zip.zipFiles) {
+			debug("Deleting archive: " + zipPath);
+			fs.unlinkSync(zipPath);
+		}
+		console.log("Exit.");
+		process.exit( );
 	}
 
 	/** Pushes changes to AEM. */
@@ -90,7 +116,8 @@
 		targets = targets.split(",");
 
 		/** Submits the package manager form. */
-		var sendForm = function(zipPath) {
+		var sendForm = function(zipPath, callback) {
+			debug("Seding form...");
 			for (var i=0; i<targets.length; ++i) {
 				var params = parseUrl(targets[i]);
 				var options = {};
@@ -103,7 +130,10 @@
 				form.append('file', fs.createReadStream(zipPath));
 				form.append('force', 'true');
 				form.append('install', 'true');
-				form.submit(options, formSubmitCallback);
+				form.submit(options, function(err, res) {
+					formSubmitCallback(err, res)
+					callback();
+				});
 			}
 		};
 
@@ -144,10 +174,8 @@
 
 			debug("\nPackage filters:\n" + pack.filters + "\n");
 
-			pack.zip.save(function() {
-				// TODO: Make in-memory zip perhaps?
-				sendForm(PACKAGE_PATH);
-			});
+			// TODO: Make in-memory zip perhaps?
+			pack.zip.save(sendForm);
 		};
 
 		/** Adds item to package. */
@@ -234,6 +262,8 @@
 		this.processQueue = function() {
 			var i, item, dict = {};
 
+			handleExit();
+
 			// Dequeue items (dictionary takes care of duplicates).
 			while((i = queue.pop())) {
 				processQueueItem(i, dict);
@@ -280,16 +310,21 @@
 
 	function main() {
 		var args = minimist(process.argv.slice(2));
-		if (!args.t || !args._[0]) {
+		if (!args.t || !args.w) {
 			console.log(HELP);
 			return;
 		}
 		syncerInterval = args.i || syncerInterval;
 		debugMode = args.d;
 
-		new Watcher(args._[0], queue);
+		new Watcher(args.w, queue);
 		new Syncer(args.t, queue);
 	}
+
+	process.on("SIGINT", function() {
+		console.log( "\nGracefully shutting down from SIGINT (Ctrl-C)...");
+		maybeeExit = true;
+	});
 
 	main();
 }());
