@@ -14,6 +14,7 @@
 	var minimist = require('minimist');
 	var archiver = require('archiver'); // TODO: consider using zip-stream for less dependencies.
 	var FormData = require('form-data');
+	var colors = require('colors');
 
 	// Constants
 	var HELP = "Usage: aemsync -t targets [-i interval] -w path_to_watch\nWebsite: https://github.com/gavoja/aemsync";
@@ -22,18 +23,20 @@
 	var RE_CONTENT = /.*\.content\.xml$/;
 	// Include files on "jcr_root/xyz/..." path that's outside hidden or target folder.
 	var RE_SAFE_PATH = /^((?!(\/\.)|(\/target\/)).)*\/jcr_root\/[^\/]*\/.*$/;
-	var ZIP_NAME = "/aemsyncX.zip";
+	var ZIP_NAME = "/aemsync.zip";
+	var STATUS_REGEX = /code="([0-9]+)">(.*)</
 
 	// Variables.
 	var syncerInterval = 300;
 	var queue = [];
 	var debugMode = false;
 	var maybeeExit = false;
+	var lock = false;
 
 	/** Prints debug message. */
 	function debug(msg) {
 		if (debugMode) {
-			console.log(msg);
+			console.log(msg.grey);
 		}
 	}
 
@@ -66,9 +69,7 @@
 	/** Zip wrapper. */
 	function Zip() {
 		var zipPath = debugMode ? __dirname + ZIP_NAME : os.tmpdir() + ZIP_NAME;
-		zipPath = zipPath.replace("X", Zip.zipCounter++);
 		var zip = archiver("zip");
-		Zip.zipFiles[zipPath] = true;
 
 		debug("Creating archive: " + zipPath);
 		var output = fs.createWriteStream(zipPath);
@@ -84,31 +85,20 @@
 			zip.append(content, {name: zipPath});
 		};
 
-		this.save = function(callback) {
+		this.save = function(onSave) {
 			output.on("close", function() {
-				callback(zipPath, function() {
-					debug("Deleting archive: " + zipPath);
-					fs.unlinkSync(zipPath);
-					delete Zip.zipFiles[zipPath];
-				});
+				onSave(zipPath);
 			});
 			zip.finalize(); // Trigers the above.
 		};
 	}
-	Zip.zipCounter = 0;
-	Zip.zipFiles = {};
 
 	function handleExit() {
-		if (maybeeExit === false) {
-			return;
+		if (maybeeExit === true) {
+			// Graceful exit.
+			console.log("Exit.");
+			process.exit( );
 		}
-
-		for (var zipPath in Zip.zipFiles) {
-			debug("Deleting archive: " + zipPath);
-			fs.unlinkSync(zipPath);
-		}
-		console.log("Exit.");
-		process.exit( );
 	}
 
 	/** Pushes changes to AEM. */
@@ -116,43 +106,71 @@
 		targets = targets.split(",");
 
 		/** Submits the package manager form. */
-		var sendForm = function(zipPath, callback) {
+		var sendForm = function(zipPath) {
 			debug("Seding form...");
 			for (var i=0; i<targets.length; ++i) {
-				var params = parseUrl(targets[i]);
-				var options = {};
-				options.path = "/crx/packmgr/service.jsp";
-				options.port = params.port;
-				options.host = params.hostname;
-				options.headers = {"Authorization":"Basic " + new Buffer(params.auth).toString('base64')};
-
-				var form = new FormData();
-				form.append('file', fs.createReadStream(zipPath));
-				form.append('force', 'true');
-				form.append('install', 'true');
-				form.submit(options, function(err, res) {
-					formSubmitCallback(err, res)
-					callback();
-				});
+				sendFormToTarget(zipPath, targets[i]);
 			}
 		};
 
+		var sendFormToTarget = function(zipPath, target) {
+			var params = parseUrl(target);
+			var options = {};
+			options.path = "/crx/packmgr/service.jsp";
+			options.port = params.port;
+			options.host = params.hostname;
+			options.headers = {"Authorization":"Basic " + new Buffer(params.auth).toString('base64')};
+
+			var form = new FormData();
+			form.append('file', fs.createReadStream(zipPath));
+			form.append('force', 'true');
+			form.append('install', 'true');
+			form.submit(options, function(err, res) {
+				onSubmit(err, res, zipPath, target);
+			});
+		};
+
 		/** Package install submit callback */
-		var formSubmitCallback = function(err, res) {
+		var onSubmit = function(err, res, zipPath, target) {
+			var host = res.req._headers.host;
+			console.log("Installing package on " + host + " ...");
+
 			if (!res) {
-				console.log(this._headers.host + " " + err.code);
+				console.log("  " + err.code.red);
 				return;
 			}
 
 			var decoder = new StringDecoder('utf8');
 			res.on("data", function(chunk) {
-				var textChunk = this.req._headers.host + " " + decoder.write(chunk);
-				if (textChunk.match(/(^.+ \/.*)|(code="500")/)) {
-					// TODO: Better error handling (https://github.com/gavoja/aemsync/issues/3)
-					process.stdout.write(textChunk);
+				// Get message and remove new line.
+				var textChunk = decoder.write(chunk);
+				textChunk = textChunk.substring(0, textChunk.length - 1);
+				debug(textChunk);
+
+				// Parse message.
+				var match = STATUS_REGEX.exec(textChunk);
+				if (match === null || match.length !== 3) {
+					return;
 				}
+
+				var code = match[1];
+				var msg = match[2];
+
+				// Success.
+				if (code === "200") {
+					console.log("  " + msg.green);
+					lock = false;
+					return;
+				}
+
+				console.log("  " + msg.red);
+				console.log("Retrying.");
+
+				// Retry on error.
+				this.sendFormToTarget(zipPath, target);
 			});
 		};
+
 
 		/** Creates a package. */
 		var createPackage = function() {
@@ -181,7 +199,7 @@
 		/** Adds item to package. */
 		var addItemInPackage = function(pack, item) {
 
-			console.log("ADD: " + item);
+			console.log("ADD: " + item.yellow);
 			var filterPath = getFilterPath(item);
 			var filter = '';
 			filter += '  <filter root="PARENT">\n';
@@ -217,7 +235,7 @@
 
 		/** Deletes item in package. */
 		var deleteItemInPackage = function(pack, item) {
-			console.log("DEL: " + item);
+			console.log("DEL: " + item.yellow);
 
 			var filterPath = getFilterPath(item);
 			pack.filters += '  <filter root="FILE" />\n'.replace(/FILE/g, filterPath);
@@ -262,6 +280,11 @@
 		this.processQueue = function() {
 			var i, item, dict = {};
 
+			// Wait for the previous package to install.
+			if (lock === true) {
+				return;
+			}
+
 			handleExit();
 
 			// Dequeue items (dictionary takes care of duplicates).
@@ -274,6 +297,7 @@
 				return;
 			}
 
+			lock = true;
 			console.log("");
 
 			var pack = createPackage();
