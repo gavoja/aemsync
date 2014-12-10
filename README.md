@@ -1,7 +1,8 @@
 aemsync
 =======
 
-Adobe AEM Synchronization Tool
+AEM (Adobe CQ) Synchronization Tool.
+
 
 ### Installation
 

@@ -2,7 +2,7 @@
 <!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">
 <properties>
 <comment>FileVault Package Properties</comment>
-<!--<entry key="createdBy">admin</entry>-->
+<entry key="createdBy">AEM Synchronization Tool</entry>
 <!--<entry key="name">cqsync-copy</entry>-->
 <!--<entry key="lastModified">2014-06-25T10:14:56.742+02:00</entry>-->
 <!--<entry key="lastModifiedBy">admin</entry>-->
@@ -13,6 +13,6 @@
 <!--<entry key="packageFormatVersion">2</entry>-->
 <!--<entry key="description"/>-->
 <!--<entry key="lastWrapped">2014-06-25T10:14:56.742+02:00</entry>-->
-<!--<entry key="group">my_packages</entry>-->
+<entry key="group">aemsync</entry>
 <!--<entry key="lastWrappedBy">admin</entry>-->
 </properties>

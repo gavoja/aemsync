@@ -22,7 +22,7 @@
 	var RE_CONTENT = /.*\.content\.xml$/;
 	// Include files on "jcr_root/xyz/..." path that's outside hidden or target folder.
 	var RE_SAFE_PATH = /^((?!(\/\.)|(\/target\/)).)*\/jcr_root\/[^\/]*\/.*$/;
-	var ZIP_NAME = "aemsyncX.zip";
+	var ZIP_NAME = "/aemsyncX.zip";
 
 	// Variables.
 	var syncerInterval = 300;
@@ -65,7 +65,7 @@
 
 	/** Zip wrapper. */
 	function Zip() {
-		var zipPath = debugMode ? __dirname + "/aemsyncX.zip" : os.tmpdir() + "/aemsyncX.zip";
+		var zipPath = debugMode ? __dirname + ZIP_NAME : os.tmpdir() + ZIP_NAME;
 		zipPath = zipPath.replace("X", Zip.zipCounter++);
 		var zip = archiver("zip");
 		Zip.zipFiles[zipPath] = true;
