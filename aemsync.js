@@ -4,17 +4,17 @@
 
 	// Built-in packages
 	var os = require("os");
-	var path = require('path');
-	var parseUrl = require('url').parse;
-	var StringDecoder = require('string_decoder').StringDecoder;
+	var path = require("path");
+	var parseUrl = require("url").parse;
+	var StringDecoder = require("string_decoder").StringDecoder;
 
 	// NPM packages
-	var fs = require('graceful-fs');
+	var fs = require("graceful-fs");
 	var watch = require("node-watch");
-	var minimist = require('minimist');
-	var archiver = require('archiver'); // TODO: consider using zip-stream for less dependencies.
-	var FormData = require('form-data');
-	var colors = require('colors');
+	var minimist = require("minimist");
+	var archiver = require("archiver"); // TODO: consider using zip-stream for less dependencies.
+	var FormData = require("form-data");
+	require('colors');
 
 	// Constants
 	var HELP = "Usage: aemsync -t targets [-i interval] -w path_to_watch\nWebsite: https://github.com/gavoja/aemsync";
@@ -24,7 +24,7 @@
 	// Include files on "jcr_root/xyz/..." path that's outside hidden or target folder.
 	var RE_SAFE_PATH = /^((?!(\/\.)|(\/target\/)).)*\/jcr_root\/[^\/]*\/.*$/;
 	var ZIP_NAME = "/aemsync.zip";
-	var STATUS_REGEX = /code="([0-9]+)">(.*)</
+	var STATUS_REGEX = /code="([0-9]+)">(.*)</;
 
 	// Variables.
 	var syncerInterval = 300;
@@ -55,6 +55,11 @@
 		});
 		return results;
 	}
+
+	var resetLock = function() {
+		lock = false;
+		console.log("\nAwaiting file changes...");
+	};
 
 	/** Gets a zip path from a local path. */
 	function getZipPath(localPath) {
@@ -133,7 +138,7 @@
 		/** Package install submit callback */
 		var onSubmit = function(err, res, zipPath, target) {
 			var host = res.req._headers.host;
-			console.log("Installing package on " + host + " ...");
+			console.log("Installing package on " + host.magenta + "...");
 
 			if (!res) {
 				console.log("  " + err.code.red);
@@ -158,19 +163,18 @@
 
 				// Success.
 				if (code === "200") {
-					console.log("  " + msg.green);
-					lock = false;
+					console.log("Status: " + msg.green);
+					resetLock();
 					return;
 				}
 
-				console.log("  " + msg.red);
+				console.log("Result: " + msg.red);
 				console.log("Retrying.");
 
 				// Retry on error.
 				this.sendFormToTarget(zipPath, target);
 			});
 		};
-
 
 		/** Creates a package. */
 		var createPackage = function() {
@@ -298,7 +302,6 @@
 			}
 
 			lock = true;
-			console.log("");
 
 			var pack = createPackage();
 			for (item in dict) {
@@ -328,7 +331,8 @@
 				debug("Change detected: " + localPath);
 				queue.push(localPath);
 			});
-			console.log("Watching: " + pathToWatch + ". Update interval: " + syncerInterval + " ms.");
+			console.log("Watching: " + pathToWatch.yellow + ". Update interval: " + syncerInterval + " ms.");
+			resetLock();
 		});
 	}
 
