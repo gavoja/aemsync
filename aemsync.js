@@ -203,7 +203,7 @@
 		/** Adds item to package. */
 		var addItemInPackage = function(pack, item) {
 
-			console.log("ADD: " + item.yellow);
+			console.log("ADD: " + item.substring(item.indexOf("jcr_root")).yellow);
 			var filterPath = getFilterPath(item);
 			var filter = '';
 			filter += '  <filter root="PARENT">\n';
@@ -239,7 +239,7 @@
 
 		/** Deletes item in package. */
 		var deleteItemInPackage = function(pack, item) {
-			console.log("DEL: " + item.yellow);
+			console.log("DEL: " + item.substring(item.indexOf("jcr_root")).yellow);
 
 			var filterPath = getFilterPath(item);
 			pack.filters += '  <filter root="FILE" />\n'.replace(/FILE/g, filterPath);
