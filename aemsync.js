@@ -344,7 +344,7 @@
 			var isReady = false;
 			var watcher = chokidar.watch(pathToWatch, {persistent: true});
 
-			console.log("Update interval: " + syncerInterval + " ms. Scanning path (may take a few minutes depending on the size): " +  pathToWatch.yellow  + "...");
+			console.log("Update interval: " + syncerInterval + " ms. Scanning path (may take while depending on the size): " +  pathToWatch.yellow  + "...");
 			watcher.on("ready", function() {
 				console.log("Scan complete.");
 				releaseLock();
