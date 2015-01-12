@@ -14,6 +14,7 @@
 	var minimist = require("minimist");
 	var archiver = require("archiver"); // TODO: consider using zip-stream for less dependencies.
 	var FormData = require("form-data");
+	var chokidar = require("chokidar");
 	require('colors');
 
 	// Constants
@@ -21,8 +22,18 @@
 	var NT_FOLDER = __dirname + "/data/nt_folder/.content.xml";
 	var RE_DIR = /^.*\.dir$/;
 	var RE_CONTENT = /.*\.content\.xml$/;
-	// Include files on "jcr_root/xyz/..." path that's outside hidden or target folder.
+
+	/**
+	 * Regex for validating a path on each change.
+	 *
+	 * File must be two levels below "jcr_root" folder (prevents from
+	 * accidenally deleting first level nodes, e.g. "apps" or "etc").
+	 * Additionally:
+	 * - must not be inside "target" folder,
+	 * - must not be inside hidden folder (starting from ".").
+	 */
 	var RE_SAFE_PATH = /^((?!(\/\.)|(\/target\/)).)*\/jcr_root\/[^\/]*\/.*$/;
+
 	var ZIP_NAME = "/aemsync.zip";
 	var STATUS_REGEX = /code="([0-9]+)">(.*)</;
 
@@ -31,7 +42,7 @@
 	var queue = [];
 	var debugMode = false;
 	var maybeeExit = false;
-	var lock = false;
+	var lock = 0;
 
 	/** Prints debug message. */
 	function debug(msg) {
@@ -56,9 +67,13 @@
 		return results;
 	}
 
-	var resetLock = function() {
-		lock = false;
-		console.log("\nAwaiting file changes...");
+	var releaseLock = function() {
+		if (lock > 0) {
+			--lock;
+		}
+		if (lock === 0) {
+			console.log("\nAwaiting file changes...");
+		}
 	};
 
 	/** Gets a zip path from a local path. */
@@ -68,7 +83,7 @@
 
 	/** Gets a filter path from a local path. */
 	function getFilterPath(localPath) {
-		return localPath.replace(/(.*jcr_root)|(\.xml$)|(\.dir)/g, "").replace(/\/_([^\/]*)_([^\/]*)$/g, "$1:$2");
+		return localPath.replace(/(.*jcr_root)|(\.xml$)|(\.dir)/g, "").replace(/\/_([^\/]*)_([^\/]*)$/g, "\/$1:$2");
 	}
 
 	/** Zip wrapper. */
@@ -108,8 +123,6 @@
 
 	/** Pushes changes to AEM. */
 	function Syncer(targets, queue) {
-		targets = targets.split(",");
-
 		/** Submits the package manager form. */
 		var sendForm = function(zipPath) {
 			debug("Seding form...");
@@ -164,7 +177,7 @@
 				// Success.
 				if (code === "200") {
 					console.log("Status: " + msg.green);
-					resetLock();
+					releaseLock();
 					return;
 				}
 
@@ -285,7 +298,8 @@
 			var i, item, dict = {};
 
 			// Wait for the previous package to install.
-			if (lock === true) {
+			// Otherwise an error may occur if two concurrent packages try to make changes to the same node.
+			if (lock > 0) {
 				return;
 			}
 
@@ -301,7 +315,7 @@
 				return;
 			}
 
-			lock = true;
+			lock = targets.length;
 
 			var pack = createPackage();
 			for (item in dict) {
@@ -320,19 +334,31 @@
 	/** Watches for file system changes. */
 	function Watcher(pathToWatch, queue) {
 		pathToWatch = path.resolve(path.normalize(pathToWatch));
+
 		fs.exists(pathToWatch, function(exists) {
 			if (!exists) {
 				console.error("Invalid path: " + pathToWatch);
 				return;
 			}
 
-			watch(pathToWatch, function(localPath) {
+			var isReady = false;
+			var watcher = chokidar.watch(pathToWatch, {persistent: true});
+
+			console.log("Update interval: " + syncerInterval + " ms. Scanning path (may take a few minutes depending on the size): " +  pathToWatch.yellow  + "...");
+			watcher.on("ready", function() {
+				console.log("Scan complete.");
+				releaseLock();
+				isReady = true;
+			});
+
+			watcher.on("change", function(localPath) {
+				if (isReady === false) {
+					return;
+				}
 				localPath = path.normalize(localPath);
 				debug("Change detected: " + localPath);
 				queue.push(localPath);
 			});
-			console.log("Watching: " + pathToWatch.yellow + ". Update interval: " + syncerInterval + " ms.");
-			resetLock();
 		});
 	}
 
@@ -346,7 +372,7 @@
 		debugMode = args.d;
 
 		new Watcher(args.w, queue);
-		new Syncer(args.t, queue);
+		new Syncer(args.t.split(","), queue);
 	}
 
 	process.on("SIGINT", function() {
@@ -355,4 +381,4 @@
 	});
 
 	main();
-}());
+})();
