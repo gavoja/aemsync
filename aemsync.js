@@ -10,7 +10,6 @@
 
 	// NPM packages
 	var fs = require("graceful-fs");
-	var watch = require("node-watch");
 	var minimist = require("minimist");
 	var archiver = require("archiver"); // TODO: consider using zip-stream for less dependencies.
 	var FormData = require("form-data");
