@@ -149,13 +149,15 @@
 
 		/** Package install submit callback */
 		var onSubmit = function(err, res, zipPath, target) {
-			var host = res.req._headers.host;
-			console.log("Installing package on " + host.magenta + "...");
-
 			if (!res) {
 				console.log("  " + err.code.red);
+				// Do not retry on server error. Servler is likely to be down.
+				releaseLock();
 				return;
 			}
+
+			var host = res.req._headers.host;
+			console.log("Installing package on " + host.magenta + "...");
 
 			var decoder = new StringDecoder('utf8');
 			res.on("data", function(chunk) {
@@ -350,7 +352,7 @@
 				isReady = true;
 			});
 
-			watcher.on("change", function(localPath) {
+			watcher.on("all", function(eventName, localPath) {
 				if (isReady === false) {
 					return;
 				}
