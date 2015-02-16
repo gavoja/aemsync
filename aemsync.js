@@ -406,7 +406,7 @@
 
 			var isReady = false;
 			var watcher = chokidar.watch(pathsToWatch, {
-				ignored: /[\/\\]\./,
+				ignored: /[\/\\]\.[^\/\\]*[\/\\]/,
 				persistent: true
 			});
 
