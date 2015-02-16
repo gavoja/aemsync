@@ -2,6 +2,10 @@
 (function () {
 	"use strict";
 
+	//
+	// VARIABLES
+	//
+
 	// Built-in packages
 	var os = require("os");
 	var path = require("path");
@@ -19,22 +23,11 @@
 	// Constants
 	var HELP = "Usage: aemsync -t targets [-i interval] -w path_to_watch\nWebsite: https://github.com/gavoja/aemsync";
 	var NT_FOLDER = __dirname + "/data/nt_folder/.content.xml";
+	var ZIP_NAME = "/aemsync.zip";
 	var RE_DIR = /^.*\.dir$/;
 	var RE_CONTENT = /.*\.content\.xml$/;
-
-	/**
-	 * Regex for validating a path on each change.
-	 *
-	 * File must be two levels below "jcr_root" folder (prevents from
-	 * accidenally deleting first level nodes, e.g. "apps" or "etc").
-	 * Additionally:
-	 * - must not be inside "target" folder,
-	 * - must not be inside hidden folder (starting from ".").
-	 */
-	var RE_SAFE_PATH = /^((?!(\/\.)|(\/target\/)).)*\/jcr_root\/[^\/]*\/.*$/;
-
-	var ZIP_NAME = "/aemsync.zip";
-	var STATUS_REGEX = /code="([0-9]+)">(.*)</;
+	var RE_STATUS = /code="([0-9]+)">(.*)</;
+	var RE_WATCH_PATH = /^.*\/jcr_root\/[^\/]*$/;
 
 	// Variables.
 	var syncerInterval = 300;
@@ -43,49 +36,90 @@
 	var maybeeExit = false;
 	var lock = 0;
 
+	//
+	// HELPERS
+	//
+
 	/** Prints debug message. */
 	function debug(msg) {
 		if (debugMode) {
-			console.log(msg.grey);
+			msg = typeof msg === "string" ? msg.grey : msg;
+			console.log(msg);
 		}
 	}
 
+	/** Cleans path. */
+	function cleanPath(localPath) {
+		return path.resolve(path.normalize(localPath)).replace(/\\/g, "/");
+	}
+
+	/** Gets a zip path from a local path. */
+	function getZipPath(localPath) {
+		return cleanPath(localPath).replace(/.*\/(jcr_root\/.*)/, "$1");
+	}
+
+	/** Gets a filter path from a local path. */
+	function getFilterPath(localPath) {
+		return cleanPath(localPath).replace(/(.*jcr_root)|(\.xml$)|(\.dir)/g, "").replace(/\/_([^\/]*)_([^\/]*)$/g, "\/$1:$2");
+	}
+
 	/** Recursively walks over directory. */
-	function walkSync(dir, includeDirectories) {
-		var results = includeDirectories ? [dir] : [];
-		var list = fs.readdirSync(dir);
+	function walkSync(localPath, returnCallback) {
+		localPath = cleanPath(localPath);
+
+		var results = [];
+		var stats = fs.statSync(localPath);
+
+		// Normalize slashes.
+
+
+		// Check return condition.
+		if (returnCallback && returnCallback(localPath, stats)) {
+			return results;
+		}
+
+		// Add current item.
+		results.push(localPath);
+
+		// No need for recursion if not a directory.
+		if (!stats.isDirectory()) {
+			return results;
+		}
+
+		// Iterate over list of children.
+		var list = fs.readdirSync(localPath);
 		list.forEach(function(file) {
-			file = dir + "/" + file;
-			var stat = fs.statSync(file);
-			if (stat && stat.isDirectory()) {
-				results = results.concat(walkSync(file));
-			} else {
-				results.push(file);
-			}
+			file = localPath + "/" + file;
+			results = results.concat(walkSync(file, returnCallback));
 		});
+
 		return results;
 	}
 
-	var releaseLock = function() {
+	/** Handles lock releasing. */
+	function releaseLock() {
 		if (lock > 0) {
 			--lock;
 		}
 		if (lock === 0) {
 			console.log("\nAwaiting file changes...");
 		}
-	};
-
-	/** Gets a zip path from a local path. */
-	function getZipPath(localPath) {
-		return localPath.replace(/.*\/(jcr_root\/.*)/, "$1");
 	}
 
-	/** Gets a filter path from a local path. */
-	function getFilterPath(localPath) {
-		return localPath.replace(/(.*jcr_root)|(\.xml$)|(\.dir)/g, "").replace(/\/_([^\/]*)_([^\/]*)$/g, "\/$1:$2");
+	/** Handles script exit. */
+	function handleExit() {
+		if (maybeeExit === true) {
+			// Graceful exit.
+			console.log("Exit.");
+			process.exit( );
+		}
 	}
 
-	/** Zip wrapper. */
+	//
+	// ZIP HANDLER
+	//
+
+	/** Creates zip archive. */
 	function Zip() {
 		var zipPath = debugMode ? __dirname + ZIP_NAME : os.tmpdir() + ZIP_NAME;
 		var zip = archiver("zip");
@@ -112,13 +146,9 @@
 		};
 	}
 
-	function handleExit() {
-		if (maybeeExit === true) {
-			// Graceful exit.
-			console.log("Exit.");
-			process.exit( );
-		}
-	}
+	//
+	// SYNCER
+	//
 
 	/** Pushes changes to AEM. */
 	function Syncer(targets, queue) {
@@ -167,7 +197,7 @@
 				debug(textChunk);
 
 				// Parse message.
-				var match = STATUS_REGEX.exec(textChunk);
+				var match = RE_STATUS.exec(textChunk);
 				if (match === null || match.length !== 3) {
 					return;
 				}
@@ -194,9 +224,11 @@
 		var createPackage = function() {
 			var zip = new Zip();
 			var path = __dirname + "/data/package_content";
-			var fileList = walkSync(path, false);
+			var fileList = walkSync(path);
 			fileList.forEach(function(subItem) {
-				zip.addLocalFile(subItem, subItem.substr(path.length + 1));
+				if (fs.statSync(subItem).isFile()) {
+					zip.addLocalFile(subItem, subItem.substr(path.length + 1));
+				}
 			});
 			return {zip: zip, filters: ""};
 		};
@@ -234,7 +266,7 @@
 			}
 
 			// Add files in directory.
-			var fileList = walkSync(item, true);
+			var fileList = walkSync(item);
 			fileList.forEach(function(subItem) {
 
 				// Add files
@@ -262,11 +294,6 @@
 		/** Processes queue items; duplicates and descendants are removed. */
 		var processQueueItem = function(item, dict) {
 			var parentItem = path.dirname(item);
-
-			// Check if path is safe (prevents from deleting stuff like "/apps").
-			if (!RE_SAFE_PATH.test(item)) {
-				return;
-			}
 
 			// Try the parent if item is "special".
 			if (item.match(RE_CONTENT) || item.match(RE_DIR) || parentItem.match(RE_DIR)) {
@@ -332,20 +359,55 @@
 		setInterval(this.processQueue, syncerInterval);
 	}
 
+	//
+	// WATCHER
+	//
+
 	/** Watches for file system changes. */
 	function Watcher(pathToWatch, queue) {
-		pathToWatch = path.resolve(path.normalize(pathToWatch));
-
+		pathToWatch = cleanPath(pathToWatch);
 		fs.exists(pathToWatch, function(exists) {
 			if (!exists) {
 				console.error("Invalid path: " + pathToWatch);
 				return;
 			}
 
-			var isReady = false;
-			var watcher = chokidar.watch(pathToWatch, {persistent: true});
-
 			console.log("Update interval: " + syncerInterval + " ms. Scanning path (may take while depending on the size): " +  pathToWatch.yellow  + "...");
+
+			// Get paths to watch.
+			var pathsToWatch = walkSync(pathToWatch, function(localPath, stats) {
+				// Skip non-directories.
+				if (stats.isDirectory() === false) {
+					return true;
+				}
+
+				// Skip dot-prefixed directories.
+				if (localPath.indexOf("\/.") !== -1) {
+					return true;
+				}
+
+				// Skip target directories outside "jcr_root".
+				var i = localPath.indexOf("\/jcr_root");
+				var j = localPath.indexOf("\/target\/") ;
+				if (i !== -1 && j !== -1 && j < i) {
+					return true;
+				}
+			});
+
+			// All paths must contain "/jcr_root/" fragment.
+			pathsToWatch = pathsToWatch.filter(function(localPath) {
+				if (localPath.match(RE_WATCH_PATH)) {
+					debug("  " + localPath);
+					return true;
+				}
+			});
+
+			var isReady = false;
+			var watcher = chokidar.watch(pathsToWatch, {
+				ignored: /[\/\\]\./,
+				persistent: true
+			});
+
 			watcher.on("ready", function() {
 				console.log("Scan complete.");
 				releaseLock();
@@ -356,12 +418,16 @@
 				if (isReady === false) {
 					return;
 				}
-				localPath = path.normalize(localPath);
+				localPath = cleanPath(localPath);
 				debug("Change detected: " + localPath);
 				queue.push(localPath);
 			});
 		});
 	}
+
+	//
+	// MAIN
+	//
 
 	function main() {
 		var args = minimist(process.argv.slice(2));
@@ -372,14 +438,14 @@
 		syncerInterval = args.i || syncerInterval;
 		debugMode = args.d;
 
+		// Gracefull exit handling.
+		process.on("SIGINT", function() {
+			console.log( "\nGracefully shutting down from SIGINT (Ctrl-C)...");
+			maybeeExit = true;
+		});
+
 		new Watcher(args.w, queue);
 		new Syncer(args.t.split(","), queue);
 	}
-
-	process.on("SIGINT", function() {
-		console.log( "\nGracefully shutting down from SIGINT (Ctrl-C)...");
-		maybeeExit = true;
-	});
-
 	main();
 })();
