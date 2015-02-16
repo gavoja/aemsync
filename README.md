@@ -15,7 +15,7 @@ npm install aemsync -g
 ### Usage
 
 ```
-aemsync -t targets [-i interval] -w path_to_watch
+aemsync -t targets -w path_to_watch
 
 -t: Comma separated list of hosts.
 -w: Path to watch.
@@ -29,8 +29,6 @@ aemsync -t targets [-i interval] -w path_to_watch
 aemsync -t http://admin:admin@localhost:4502 -w ~/workspace/my_project
 ```
 
-The path has to contain jcr_root folder. File system changes inside the folder will be picked up and pushed to AEM instance as a package. There is no vault dependency.
+After the script is run, all `jcr_root/*` folders within the `path_to_watch` are searched for (dot-prefixed and `target` folders are omitted). This may take a while depending on the size. Once the scan is completed, file system changes inside those folders are picked up and pushed to AEM instance as a package. There is no vault dependency.
 
-Sync interval is the time the syncer waits for changes before the package is created. In case of multiple changes occuring at the same time (e.g. switchig between code branches), we want to avoid creating a new pachage for each file, but rather send all in one go. Lowering the value removes the delay from a single change but increases the delay for multiple changes.
-
-On startup, a scan for all directories within the path to watch is necessary in order to attach the file system handlers. Depending on the size this may take a while.
+Update interval is the time the syncer waits for the changes before the package is created. In case of multiple changes occurring at the same time (e.g. switching between code branches), creating a new package for each file should be avoided and instead, all files should be send as one package. Lowering the value decreases the delay for a single file change but can increase the delay for multiple file changes. If you are unsure, please leave the default value.
