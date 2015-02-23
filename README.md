@@ -36,9 +36,3 @@ Update interval is the time the syncer waits for the changes before the package 
 ### Known issues
 
 The package is installed using package manager service (`/crx/packmgr/service.jsp`), which takes time some time to initialize after the AEM startup. If the push happens before that, a Sling Post Servlet will be used causing `/crx/packmgr/service.jsp/file` node to be added to the repository.
-
-
-If the synchronization occurs right after the AEM startup and before the package manager is initialized
-
-
-installation servlet not there
