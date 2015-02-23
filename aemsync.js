@@ -21,13 +21,14 @@
 	require('colors');
 
 	// Constants
-	var HELP = "Usage: aemsync -t targets [-i interval] -w path_to_watch\nWebsite: https://github.com/gavoja/aemsync";
+	var HELP = "Usage: aemsync -t targets -w path_to_watch\nWebsite: https://github.com/gavoja/aemsync";
 	var NT_FOLDER = __dirname + "/data/nt_folder/.content.xml";
 	var ZIP_NAME = "/aemsync.zip";
 	var RE_DIR = /^.*\.dir$/;
 	var RE_CONTENT = /.*\.content\.xml$/;
 	var RE_STATUS = /code="([0-9]+)">(.*)</;
 	var RE_WATCH_PATH = /^.*\/jcr_root\/[^\/]*$/;
+	var PACKAGE_MANAGER_URL = "/crx/packmgr/service.jsp";
 
 	// Variables.
 	var syncerInterval = 300;
@@ -160,7 +161,7 @@
 		var sendFormToTarget = function(zipPath, target) {
 			var params = parseUrl(target);
 			var options = {};
-			options.path = "/crx/packmgr/service.jsp";
+			options.path = PACKAGE_MANAGER_URL;
 			options.port = params.port;
 			options.host = params.hostname;
 			options.headers = {"Authorization":"Basic " + new Buffer(params.auth).toString('base64')};
@@ -449,5 +450,6 @@
 		new Watcher(args.w, queue);
 		new Syncer(args.t.split(","), queue);
 	}
+
 	main();
 })();
