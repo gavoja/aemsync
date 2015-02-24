@@ -406,6 +406,9 @@ function Watcher(pathToWatch, queue) {
 		console.log(util.format(MSG_INIT, syncerInterval, pathToWatch.yellow));
 
 		// Get paths to watch.
+		// By ignoring the lookup of certain folders (e.g. dot-prefixed or
+		// "target"), we speed up chokidar's initial scan, as the paths are
+		// narrowed down to "jcr_root/*".
 		var pathsToWatch = walkSync(pathToWatch, function (localPath, stats) {
 			// Skip non-directories.
 			if (stats.isDirectory() === false) {
@@ -430,10 +433,8 @@ function Watcher(pathToWatch, queue) {
 			if (i !== -1 && parentParentDir === "jcr_root") {
 				return true;
 			}
-		});
-
-		// All paths must contain "/jcr_root/" fragment.
-		pathsToWatch = pathsToWatch.filter(function (localPath) {
+		}).filter(function (localPath) {
+			// Remove found items that are not "jcr_root/*".
 			if (localPath.match(RE_WATCH_PATH)) {
 				debug("  " + localPath);
 				return true;
@@ -449,12 +450,12 @@ function Watcher(pathToWatch, queue) {
 			return false;
 		};
 
+		var isReady = false;
 		var watcher = chokidar.watch(pathsToWatch, {
 			ignored: ignored,
 			persistent: true
 		});
 
-		var isReady = false;
 		watcher.on("ready", function () {
 			console.log("Scan complete.");
 			releaseLock();
