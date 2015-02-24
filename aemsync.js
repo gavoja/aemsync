@@ -173,7 +173,7 @@ function Zip() {
 function Syncer(targets, queue) {
 	/** Submits the package manager form. */
 	var sendForm = function (zipPath) {
-		debug("Seding form...");
+		debug("Posting...");
 		for (var i = 0; i < targets.length; ++i) {
 			sendFormToTarget(zipPath, targets[i]);
 		}
@@ -201,22 +201,22 @@ function Syncer(targets, queue) {
 
 	/** Package install submit callback */
 	var onSubmit = function (err, res, zipPath, target) {
+		var host = target.substring(target.indexOf("@") + 1);
 		if (!res) {
-			console.log("  " + err.code.red);
+			console.log("Installing package on [" + host.magenta + "]: " +  err.code.red);
 			// Do not retry on server error. Servler is likely to be down.
 			releaseLock();
 			return;
 		}
 
-		var host = res.req._headers.host;
-		console.log("Installing package on " + host.magenta + "...");
-
 		var decoder = new StringDecoder('utf8');
+		var output = "\nOutput from " + host + ":";
 		res.on("data", function (chunk) {
+
 			// Get message and remove new line.
 			var textChunk = decoder.write(chunk);
 			textChunk = textChunk.substring(0, textChunk.length - 1);
-			debug(textChunk);
+			output += "\n" + textChunk;
 
 			// Parse message.
 			var match = RE_STATUS.exec(textChunk);
@@ -227,14 +227,16 @@ function Syncer(targets, queue) {
 			var code = match[1];
 			var msg = match[2];
 
+			debug(output);
+
 			// Success.
 			if (code === "200") {
-				console.log("Status: " + msg.green);
+				console.log("Installing package on [" + host.magenta + "]: " + msg.green);
 				releaseLock();
 				return;
 			}
 
-			console.log("Result: " + msg.red);
+			console.log("Installing package on [" + host.magenta + "]: " + msg.red);
 			console.log("Retrying.");
 
 			// Retry on error.
