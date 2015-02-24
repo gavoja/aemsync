@@ -1,9 +1,9 @@
 /*jslint node: true, multistr: true*/
 "use strict";
 
-// --------------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // VARIABLES
-// --------------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 
 // Built-in packages
 var os = require("os");
@@ -52,9 +52,9 @@ var debugMode = false;
 var maybeeExit = false;
 var lock = 0;
 
-// --------------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // HELPERS
-// --------------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 
 /** Prints debug message. */
 function debug(msg) {
@@ -130,9 +130,9 @@ function handleExit() {
 	}
 }
 
-// --------------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // ZIP HANDLER
-// --------------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 
 /** Creates zip archive. */
 function Zip() {
@@ -165,9 +165,9 @@ function Zip() {
 	};
 }
 
-// --------------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // SYNCER
-// --------------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 
 /** Pushes changes to AEM. */
 function Syncer(targets, queue) {
@@ -181,12 +181,13 @@ function Syncer(targets, queue) {
 
 	var sendFormToTarget = function (zipPath, target) {
 		var params = parseUrl(target);
+		var auth = new Buffer(params.auth).toString('base64');
 		var options = {};
 		options.path = PACKAGE_MANAGER_URL;
 		options.port = params.port;
 		options.host = params.hostname;
 		options.headers = {
-			"Authorization": "Basic " + new Buffer(params.auth).toString('base64')
+			"Authorization": "Basic " + auth
 		};
 
 		var form = new FormData();
@@ -276,8 +277,8 @@ function Syncer(targets, queue) {
 		console.log("ADD: " + item.substring(item.indexOf("jcr_root")).yellow);
 		var filterPath = getFilterPath(item);
 		var dirName = path.dirname(filterPath);
-		pack.filters += util.format(FILTER_CHILDREN, dirName, dirName, filterPath,
-			filterPath);
+		pack.filters += util.format(FILTER_CHILDREN, dirName, dirName,
+				filterPath, filterPath);
 
 		// Add file.
 		if (fs.lstatSync(item).isFile()) {
@@ -287,7 +288,7 @@ function Syncer(targets, queue) {
 
 		// Add files in directory.
 		var fileList = walkSync(item, function (localPath) {
-			// Ignore dot-prefixed files and directories except of ".content.xml".
+			// Ignore dot-prefixed files and directories except ".content.xml".
 			var baseName = path.basename(localPath);
 			if (baseName.indexOf(".") === 0 && baseName != ".content.xml") {
 				debug("  Skipped: " + getZipPath(localPath));
@@ -324,7 +325,8 @@ function Syncer(targets, queue) {
 		var parentItem = path.dirname(item);
 
 		// Try the parent if item is "special".
-		if (item.match(RE_CONTENT) || item.match(RE_DIR) || parentItem.match(RE_DIR)) {
+		if (item.match(RE_CONTENT) || item.match(RE_DIR) ||
+				parentItem.match(RE_DIR)) {
 			processQueueItem(parentItem, dict);
 			return;
 		}
@@ -354,8 +356,8 @@ function Syncer(targets, queue) {
 		var i, item, dict = {};
 
 		// Wait for the previous package to install.
-		// Otherwise an error may occur if two concurrent packages try to make changes
-		// to the same node.
+		// Otherwise an error may occur if two concurrent packages try to make
+		// changes to the same node.
 		if (lock > 0) {
 			return;
 		}
@@ -388,9 +390,9 @@ function Syncer(targets, queue) {
 	setInterval(this.processQueue, syncerInterval);
 }
 
-// --------------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // WATCHER
-// --------------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 
 /** Watches for file system changes. */
 function Watcher(pathToWatch, queue) {
@@ -423,7 +425,8 @@ function Watcher(pathToWatch, queue) {
 			}
 
 			// Skip directories inside two levels inside "jcr_root".
-			var parentParentDir = path.basename(path.dirname(path.dirname(localPath)));
+			var parentParentDir = path.basename(
+					path.dirname(path.dirname(localPath)));
 			if (i !== -1 && parentParentDir === "jcr_root") {
 				return true;
 			}
@@ -469,9 +472,9 @@ function Watcher(pathToWatch, queue) {
 	});
 }
 
-// --------------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // MAIN
-// --------------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 
 function main() {
 	var args = minimist(process.argv.slice(2));
