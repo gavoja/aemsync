@@ -292,7 +292,7 @@ function Syncer(targets, queue) {
 		var fileList = walkSync(item, function (localPath) {
 			// Ignore dot-prefixed files and directories except ".content.xml".
 			var baseName = path.basename(localPath);
-			if (baseName.indexOf(".") === 0 && baseName != ".content.xml") {
+			if (baseName.indexOf(".") === 0 && baseName !== ".content.xml") {
 				debug("  Skipped: " + getZipPath(localPath));
 				return true;
 			}
@@ -443,7 +443,7 @@ function Watcher(pathToWatch, queue) {
 			}
 		});
 
-		// Ignore all dot-prefixed folders and files except "content.xml".
+		// Ignore all dot-prefixed folders and files except ".content.xml".
 		var ignored = function (localPath) {
 			var baseName = path.basename(localPath);
 			if (baseName.indexOf(".") === 0 && baseName !== ".content.xml") {
