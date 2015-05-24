@@ -21,18 +21,18 @@ var util = require("util");
 require('colors');
 
 // Constants
-var MSG_HELP = "Usage: aemsync -t targets -w path_to_watch\
-Website: https://github.com/gavoja/aemsync";
-var MSG_INIT = "Update interval: %s ms. Scanning path (may take while depending on the size): %s ...";
+var MSG_HELP = "Usage: aemsync -t targets (defult is 'http://admin:admin@localhost:4502) -w path_to_watch (default is current)\nWebsite: https://github.com/gavoja/aemsync\n";
+var MSG_INIT = "Working directory: %s\nTarget(s): %s\nUpdate interval: %s\n";
 var MSG_EXIT = "\nGracefully shutting down from SIGINT (Ctrl-C)...";
+var MSG_INST = "Deploying to [%s]: %s";
 var FILTER_WRAPPER = '<?xml version="1.0" encoding="UTF-8"?>\
 <workspaceFilter version="1.0">%s\
 </workspaceFilter>';
 var FILTER_CHILDREN = '\
   <filter root="%s">\
-    <exclude pattern="%s/.*" />\
-    <include pattern="%s" />\
-    <include pattern="%s/.*" />\
+	<exclude pattern="%s/.*" />\
+	<include pattern="%s" />\
+	<include pattern="%s/.*" />\
   </filter>';
 var FILTER = '\
   <filter root="%s" />';
@@ -44,9 +44,11 @@ var RE_CONTENT = /.*\.content\.xml$/;
 var RE_STATUS = /code="([0-9]+)">(.*)</;
 var RE_WATCH_PATH = /^.*\/jcr_root\/[^\/]*$/;
 var PACKAGE_MANAGER_URL = "/crx/packmgr/service.jsp";
+var DEFAULT_TARGET = "http://admin:admin@localhost:4502";
+var DEFAULT_WORKING_DIR = ".";
+var DEFAULT_SYNCER_INTERVAL = 300;
 
-// Variables.
-var syncerInterval = 300;
+// Global variables.
 var queue = [];
 var debugMode = false;
 var maybeeExit = false;
@@ -55,6 +57,25 @@ var lock = 0;
 // -----------------------------------------------------------------------------
 // HELPERS
 // -----------------------------------------------------------------------------
+
+/** Graceful exit. */
+function gracefulExit() {
+
+	process.on("SIGINT", function () {
+		console.log(MSG_EXIT);
+		maybeeExit = true;
+	});
+
+	// Proper SIGINT handling on Windows.
+	if (process.platform === "win32") {
+		require("readline").createInterface({
+			input: process.stdin,
+			output: process.stdout
+		}).on("SIGINT", function () {
+			process.emit("SIGINT");
+		});
+	}
+}
 
 /** Prints debug message. */
 function debug(msg) {
@@ -170,7 +191,7 @@ function Zip() {
 // -----------------------------------------------------------------------------
 
 /** Pushes changes to AEM. */
-function Syncer(targets, queue) {
+function Syncer(targets, queue, interval) {
 	/** Submits the package manager form. */
 	var sendForm = function (zipPath) {
 		debug("Posting...");
@@ -190,20 +211,22 @@ function Syncer(targets, queue) {
 			"Authorization": "Basic " + auth
 		};
 
+		var timestamp = Date.now();
+
 		var form = new FormData();
 		form.append('file', fs.createReadStream(zipPath));
 		form.append('force', 'true');
 		form.append('install', 'true');
 		form.submit(options, function (err, res) {
-			onSubmit(err, res, zipPath, target);
+			onSubmit(err, res, zipPath, target, timestamp);
 		});
 	};
 
 	/** Package install submit callback */
-	var onSubmit = function (err, res, zipPath, target) {
+	var onSubmit = function (err, res, zipPath, target, timestamp) {
 		var host = target.substring(target.indexOf("@") + 1);
 		if (!res) {
-			console.log("Installing package on [" + host.magenta + "]: " +  err.code.red);
+			console.log(util.format(MSG_INST, host.magenta, err.code.red));
 			// Do not retry on server error. Servler is likely to be down.
 			releaseLock();
 			return;
@@ -231,12 +254,16 @@ function Syncer(targets, queue) {
 
 			// Success.
 			if (code === "200") {
-				console.log("Installing package on [" + host.magenta + "]: " + msg.green);
+				var delta = Date.now() - timestamp;
+				var time = new Date().toISOString();
+				var msg = util.format("completed in %sms at %s", delta, time);
+				// msg = "completed in " +
+				console.log(util.format(MSG_INST, host.magenta, msg.green));
 				releaseLock();
 				return;
 			}
 
-			console.log("Installing package on [" + host.magenta + "]: " + msg.red);
+			console.log(util.format(MSG_INST, host.magenta, msg.red));
 			console.log("Retrying.");
 
 			// Retry on error.
@@ -249,11 +276,13 @@ function Syncer(targets, queue) {
 		var zip = new Zip();
 		var path = __dirname + "/data/package_content";
 		var fileList = walkSync(path);
+
 		fileList.forEach(function (subItem) {
 			if (fs.statSync(subItem).isFile()) {
 				zip.addLocalFile(subItem, subItem.substr(path.length + 1));
 			}
 		});
+
 		return {
 			zip: zip,
 			filters: ""
@@ -275,7 +304,6 @@ function Syncer(targets, queue) {
 
 	/** Adds item to package. */
 	var addItemInPackage = function (pack, item) {
-
 		console.log("ADD: " + item.substring(item.indexOf("jcr_root")).yellow);
 		var filterPath = getFilterPath(item);
 		var dirName = path.dirname(filterPath);
@@ -289,17 +317,16 @@ function Syncer(targets, queue) {
 		}
 
 		// Add files in directory.
-		var fileList = walkSync(item, function (localPath) {
+		walkSync(item, function (localPath) {
 			// Ignore dot-prefixed files and directories except ".content.xml".
 			var baseName = path.basename(localPath);
 			if (baseName.indexOf(".") === 0 && baseName !== ".content.xml") {
 				debug("  Skipped: " + getZipPath(localPath));
 				return true;
 			}
-			return false;
-		});
-		fileList.forEach(function (subItem) {
 
+			return false;
+		}).forEach(function (subItem) {
 			// Add files
 			if (fs.lstatSync(subItem).isFile()) {
 				pack.zip.addLocalFile(subItem, getZipPath(subItem));
@@ -389,7 +416,7 @@ function Syncer(targets, queue) {
 		installPackage(pack);
 	};
 
-	setInterval(this.processQueue, syncerInterval);
+	setInterval(this.processQueue, interval);
 }
 
 // -----------------------------------------------------------------------------
@@ -397,15 +424,14 @@ function Syncer(targets, queue) {
 // -----------------------------------------------------------------------------
 
 /** Watches for file system changes. */
-function Watcher(pathToWatch, queue) {
-	pathToWatch = cleanPath(pathToWatch);
+function Watcher(pathToWatch, queue, callback) {
 	fs.exists(pathToWatch, function (exists) {
 		if (!exists) {
 			console.error("Invalid path: " + pathToWatch);
 			return;
 		}
 
-		console.log(util.format(MSG_INIT, syncerInterval, pathToWatch.yellow));
+		console.log("Scanning for 'jcr_root' folders ...");
 
 		// Get paths to watch.
 		// By ignoring the lookup of certain folders (e.g. dot-prefixed or
@@ -431,7 +457,7 @@ function Watcher(pathToWatch, queue) {
 
 			// Skip directories inside two levels inside "jcr_root".
 			var parentParentDir = path.basename(
-					path.dirname(path.dirname(localPath)));
+				path.dirname(path.dirname(localPath)));
 			if (i !== -1 && parentParentDir === "jcr_root") {
 				return true;
 			}
@@ -443,34 +469,43 @@ function Watcher(pathToWatch, queue) {
 			}
 		});
 
+		// Return if nothing to watch.
+		if (pathsToWatch.length === 0) {
+			console.log("No 'jcr_root' folders found.");
+			return;
+		}
+
 		// Ignore all dot-prefixed folders and files except ".content.xml".
 		var ignored = function (localPath) {
 			var baseName = path.basename(localPath);
 			if (baseName.indexOf(".") === 0 && baseName !== ".content.xml") {
 				return true;
 			}
+
 			return false;
 		};
 
-		var isReady = false;
+		// Start watcher.
 		var watcher = chokidar.watch(pathsToWatch, {
 			ignored: ignored,
 			persistent: true
 		});
 
+		// When scan is complete.
 		watcher.on("ready", function () {
-			console.log("Scan complete.");
+			console.log(util.format("Found %s 'jcr_root' folder(s).'",
+				pathToWatch.length));
 			releaseLock();
-			isReady = true;
-		});
 
-		watcher.on("all", function (eventName, localPath) {
-			if (isReady === false) {
-				return;
-			}
-			localPath = cleanPath(localPath);
-			debug("Change detected: " + localPath);
-			queue.push(localPath);
+			// Detect all changes.
+			watcher.on("all", function (eventName, localPath) {
+				localPath = cleanPath(localPath);
+				debug("Change detected: " + localPath);
+				queue.push(localPath);
+			});
+
+			// Fire callback.
+			callback();
 		});
 	});
 }
@@ -481,21 +516,32 @@ function Watcher(pathToWatch, queue) {
 
 function main() {
 	var args = minimist(process.argv.slice(2));
-	if (!args.t || !args.w) {
+
+	// Show help.
+	if (args.h) {
 		console.log(MSG_HELP);
 		return;
 	}
-	syncerInterval = args.i || syncerInterval;
+
+	// Set debug mode.
 	debugMode = args.d;
 
-	// Gracefull exit handling.
-	process.on("SIGINT", function () {
-		console.log(MSG_EXIT);
-		maybeeExit = true;
-	});
+	// Get configuration.
+	var targets = args.t ? args.t : DEFAULT_TARGET;
+	var workingDir = args.w ? cleanPath(args.w) :
+		cleanPath(DEFAULT_WORKING_DIR);
+	var syncerInterval = args.i ? args.i : DEFAULT_SYNCER_INTERVAL;
 
-	new Watcher(args.w, queue);
-	new Syncer(args.t.split(","), queue);
+	// Show info.
+	console.log(util.format(MSG_INIT, workingDir.yellow, targets.yellow,
+		(syncerInterval + "ms").yellow));
+
+	// Start the watcher.
+	new Watcher(workingDir, queue, function() {
+		gracefulExit();
+		// Start the syncer.
+		new Syncer(targets.split(","), queue, syncerInterval);
+	});
 }
 
 main();

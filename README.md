@@ -3,6 +3,13 @@ aemsync
 
 AEM (Adobe CQ) Synchronization Tool.
 
+### Synopsis
+
+The tool pushes code changes to AEM instance(s) upon a file change.
+* There is no vault dependency.
+* It can push to multiple instances at the same time (e.g. author and publish).
+* IDE/editor agnostic.
+* Works on Windows, Linux and Mac.
 
 ### Installation
 
@@ -17,22 +24,24 @@ npm install aemsync -g
 ```
 aemsync -t targets -w path_to_watch
 
--t: Comma separated list of hosts.
--w: Path to watch.
--i: Update interval; default 300 ms.
+-t: Comma separated list of target hosts; default is http://admin:admin@localhost:4502.
+-w: Folder to watch; default is current.
+-i: Update interval; default is 300ms.
 -d: Enable debug mode.
 ```
 
 ### Example
 
 ```
-aemsync -t http://admin:admin@localhost:4502 -w ~/workspace/my_project
+aemsync -t http://admin:admin@localhost:4502,http://admin:admin@localhost:4503 -w ~/workspace/my_project
 ```
 
-After the script is run, all `jcr_root/*` folders within the `path_to_watch` are searched for (dot-prefixed and `target` folders are omitted). This may take a while depending on the size. Once the scan is completed, file system changes inside those folders are picked up and pushed to AEM instance as a package. There is no vault dependency.
+### Description
 
-Update interval is the time the syncer waits for the changes before the package is created. In case of multiple changes occurring at the same time (e.g. switching between code branches), creating a new package for each file should be avoided and instead, all files should be send as one package. Lowering the value decreases the delay for a single file change but can increase the delay for multiple file changes. If you are unsure, please leave the default value.
+When run, it scans for `jcr_root/*` folders within the `path_to_watch` (dot-prefixed and `target` folders are omitted). This may take a while depending on the size. After the scan is done, file system changes inside those folders are detected and deployed to AEM instance(s) as a package.
+
+Update interval is the time the syncer waits for file changes changes before the package is created. In case of multiple file changes (e.g. switching between code branches), creating a new package per file should be avoided and instead, all changes should be pushed in one go. Lowering the value decreases the delay for a single file change but can increase the delay for multiple file changes. If you are unsure, please leave the default value.
 
 ### Known issues
 
-The package is installed using package manager service (`/crx/packmgr/service.jsp`), which takes time some time to initialize after the AEM startup. If the push happens before, the Sling Post Servlet will take over causing the `/crx/packmgr/service.jsp/file` node to be added to the repository.
+Packages are installed using package manager service (`/crx/packmgr/service.jsp`), which takes some time to initialize after AEM startup. If the push happens before, the Sling Post Servlet will take over causing the `/crx/packmgr/service.jsp/file` node to be added to the repository.
