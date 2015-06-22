@@ -22,7 +22,7 @@ require('colors');
 
 // Constants
 var MSG_HELP = "Usage: aemsync -t targets (defult is 'http://admin:admin@localhost:4502) -w path_to_watch (default is current)\nWebsite: https://github.com/gavoja/aemsync\n";
-var MSG_INIT = "Working directory: %s\nTarget(s): %s\nUpdate interval: %s\n";
+var MSG_INIT = "Working directory: %s\nTarget(s): %s\nFilter(s): %s\nUpdate interval: %s\n";
 var MSG_EXIT = "\nGracefully shutting down from SIGINT (Ctrl-C)...";
 var MSG_INST = "Deploying to [%s]: %s";
 var FILTER_WRAPPER = '<?xml version="1.0" encoding="UTF-8"?>\
@@ -424,7 +424,7 @@ function Syncer(targets, queue, interval) {
 // -----------------------------------------------------------------------------
 
 /** Watches for file system changes. */
-function Watcher(pathToWatch, queue, callback) {
+function Watcher(pathToWatch, filters, queue, callback) {
 	fs.exists(pathToWatch, function (exists) {
 		if (!exists) {
 			console.error("Invalid path: " + pathToWatch);
@@ -477,7 +477,19 @@ function Watcher(pathToWatch, queue, callback) {
 
 		// Ignore all dot-prefixed folders and files except ".content.xml".
 		var ignored = function (localPath) {
+			
 			var baseName = path.basename(localPath);
+			var filterPath = cleanPath(localPath).replace(pathToWatch, '');
+
+			// Skit filtered paths
+			for(var i = 0; i < filters.length; i++) {
+				var patt = new RegExp(filters[i], "g");
+
+				if (patt.test(filterPath)) {
+					return true;
+				}
+			}
+
 			if (baseName.indexOf(".") === 0 && baseName !== ".content.xml") {
 				return true;
 			}
@@ -530,14 +542,22 @@ function main() {
 	var targets = args.t ? args.t : DEFAULT_TARGET;
 	var workingDir = args.w ? cleanPath(args.w) :
 		cleanPath(DEFAULT_WORKING_DIR);
+	var filters = args.f ? args.f : '';
+
 	var syncerInterval = args.i ? args.i : DEFAULT_SYNCER_INTERVAL;
 
 	// Show info.
-	console.log(util.format(MSG_INIT, workingDir.yellow, targets.yellow,
+	console.log(util.format(MSG_INIT, workingDir.yellow, targets.yellow, filters.yellow,
 		(syncerInterval + "ms").yellow));
 
+	if(filters) {
+		filters = filters.split(",");
+	} else {
+		filters = [];
+	}
+
 	// Start the watcher.
-	new Watcher(workingDir, queue, function() {
+	new Watcher(workingDir, filters, queue, function() {
 		gracefulExit();
 		// Start the syncer.
 		new Syncer(targets.split(","), queue, syncerInterval);
