@@ -25,17 +25,17 @@ var MSG_HELP = "Usage: aemsync -t targets (defult is 'http://admin:admin@localho
 var MSG_INIT = "Working directory: %s\nTarget(s): %s\nUpdate interval: %s\n";
 var MSG_EXIT = "\nGracefully shutting down from SIGINT (Ctrl-C)...";
 var MSG_INST = "Deploying to [%s]: %s";
-var FILTER_WRAPPER = '<?xml version="1.0" encoding="UTF-8"?>\
-<workspaceFilter version="1.0">%s\
-</workspaceFilter>';
-var FILTER_CHILDREN = '\
-  <filter root="%s">\
-	<exclude pattern="%s/.*" />\
-	<include pattern="%s" />\
-	<include pattern="%s/.*" />\
-  </filter>';
-var FILTER = '\
-  <filter root="%s" />';
+var FILTER_WRAPPER = '<?xml version="1.0" encoding="UTF-8"?>\n' +
+'<workspaceFilter version="1.0">%s\n' +
+'</workspaceFilter>';
+var FILTER_CHILDREN = '\n' +
+'  <filter root="%s">\n' +
+'    <exclude pattern="%s/.*" />\n' +
+'    <include pattern="%s" />\n' +
+'   <include pattern="%s/.*" />\n' +
+'  </filter>';
+var FILTER = '\n' +
+'  <filter root="%s" />';
 var FILTER_ZIP_PATH = "META-INF/vault/filter.xml";
 var NT_FOLDER = __dirname + "/data/nt_folder/.content.xml";
 var ZIP_NAME = "/aemsync.zip";
@@ -203,6 +203,8 @@ function Syncer(targets, queue, interval) {
 	var sendFormToTarget = function (zipPath, target) {
 		var params = parseUrl(target);
 		var auth = new Buffer(params.auth).toString('base64');
+		var timestamp = Date.now();
+
 		var options = {};
 		options.path = PACKAGE_MANAGER_URL;
 		options.port = params.port;
@@ -210,8 +212,6 @@ function Syncer(targets, queue, interval) {
 		options.headers = {
 			"Authorization": "Basic " + auth
 		};
-
-		var timestamp = Date.now();
 
 		var form = new FormData();
 		form.append('file', fs.createReadStream(zipPath));
@@ -252,22 +252,16 @@ function Syncer(targets, queue, interval) {
 
 			debug(output);
 
-			// Success.
 			if (code === "200") {
 				var delta = Date.now() - timestamp;
 				var time = new Date().toISOString();
 				var msg = util.format("completed in %sms at %s", delta, time);
-				// msg = "completed in " +
 				console.log(util.format(MSG_INST, host.magenta, msg.green));
-				releaseLock();
-				return;
+			} else { // Error.
+				console.log(util.format(MSG_INST, host.magenta, msg.red));
 			}
 
-			console.log(util.format(MSG_INST, host.magenta, msg.red));
-			console.log("Retrying.");
-
-			// Retry on error.
-			this.sendFormToTarget(zipPath, target);
+			releaseLock();
 		});
 	};
 
