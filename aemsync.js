@@ -42,7 +42,7 @@ var ZIP_NAME = "/aemsync.zip";
 var RE_DIR = /^.*\.dir$/;
 var RE_CONTENT = /.*\.content\.xml$/;
 var RE_STATUS = /code="([0-9]+)">(.*)</;
-var RE_WATCH_PATH = /^.*\/jcr_root\/[^\/]*$/;
+var RE_WATCH_PATH = /.*\/jcr_root$/;
 var PACKAGE_MANAGER_URL = "/crx/packmgr/service.jsp";
 var DEFAULT_TARGET = "http://admin:admin@localhost:4502";
 var DEFAULT_WORKING_DIR = ".";
@@ -461,6 +461,7 @@ function Watcher(pathToWatch, filters, queue, callback) {
 			if (i !== -1 && parentParentDir === "jcr_root") {
 				return true;
 			}
+
 		}).filter(function (localPath) {
 			// Remove found items that are not "jcr_root/*".
 			if (localPath.match(RE_WATCH_PATH)) {
@@ -505,8 +506,9 @@ function Watcher(pathToWatch, filters, queue, callback) {
 
 		// When scan is complete.
 		watcher.on("ready", function () {
+			
 			console.log(util.format("Found %s 'jcr_root' folder(s).'",
-				pathToWatch.length));
+				pathsToWatch.length));
 			releaseLock();
 
 			// Detect all changes.
