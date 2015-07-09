@@ -22,7 +22,7 @@ require('colors');
 
 // Constants
 var MSG_HELP = "Usage: aemsync -t targets (defult is 'http://admin:admin@localhost:4502) -w path_to_watch (default is current)\nWebsite: https://github.com/gavoja/aemsync\n";
-var MSG_INIT = "Working directory: %s\nTarget(s): %s\nUpdate interval: %s\n";
+var MSG_INIT = "Working directory: %s\nTarget(s): %s\nUpdate interval: %s\nFilter: %s\n";
 var MSG_EXIT = "\nGracefully shutting down from SIGINT (Ctrl-C)...";
 var MSG_INST = "Deploying to [%s]: %s";
 var FILTER_WRAPPER = '<?xml version="1.0" encoding="UTF-8"?>\n' +
@@ -418,19 +418,21 @@ function Syncer(targets, queue, interval) {
 // -----------------------------------------------------------------------------
 
 /** Watches for file system changes. */
-function Watcher(pathToWatch, queue, callback) {
+function Watcher(pathToWatch, queue, userFilter, callback) {
 	fs.exists(pathToWatch, function (exists) {
 		if (!exists) {
 			console.error("Invalid path: " + pathToWatch);
 			return;
 		}
 
-		console.log("Scanning for 'jcr_root' folders ...");
+		console.log("Scanning for 'jcr_root/*' folders ...");
 
 		// Get paths to watch.
 		// By ignoring the lookup of certain folders (e.g. dot-prefixed or
 		// "target"), we speed up chokidar's initial scan, as the paths are
-		// narrowed down to "jcr_root/*".
+		// narrowed down to "jcr_root/*" only.
+		// It is set to work one level below "jcr_root" intentionally in order
+		// to prevent accidental removal of first level nodes such as "libs".
 		var pathsToWatch = walkSync(pathToWatch, function (localPath, stats) {
 			// Skip non-directories.
 			if (stats.isDirectory() === false) {
@@ -465,12 +467,12 @@ function Watcher(pathToWatch, queue, callback) {
 
 		// Return if nothing to watch.
 		if (pathsToWatch.length === 0) {
-			console.log("No 'jcr_root' folders found.");
+			console.log("No 'jcr_root/*' folders found.");
 			return;
 		}
 
 		// Ignore all dot-prefixed folders and files except ".content.xml".
-		var ignored = function (localPath) {
+		var skipHidden = function (localPath) {
 			var baseName = path.basename(localPath);
 			if (baseName.indexOf(".") === 0 && baseName !== ".content.xml") {
 				return true;
@@ -478,6 +480,13 @@ function Watcher(pathToWatch, queue, callback) {
 
 			return false;
 		};
+
+		var ignored = [skipHidden];
+
+		// Apply user filter.
+		if (userFilter) {
+			ignored.push(userFilter);
+		}
 
 		// Start watcher.
 		var watcher = chokidar.watch(pathsToWatch, {
@@ -487,8 +496,8 @@ function Watcher(pathToWatch, queue, callback) {
 
 		// When scan is complete.
 		watcher.on("ready", function () {
-			console.log(util.format("Found %s 'jcr_root' folder(s).'",
-				pathToWatch.length));
+			console.log(util.format("Found %s 'jcr_root/*' folder(s).'",
+				pathsToWatch.length));
 			releaseLock();
 
 			// Detect all changes.
@@ -525,13 +534,14 @@ function main() {
 	var workingDir = args.w ? cleanPath(args.w) :
 		cleanPath(DEFAULT_WORKING_DIR);
 	var syncerInterval = args.i ? args.i : DEFAULT_SYNCER_INTERVAL;
+	var userFilter = args.f ? args.f : "";
 
 	// Show info.
 	console.log(util.format(MSG_INIT, workingDir.yellow, targets.yellow,
-		(syncerInterval + "ms").yellow));
+		(syncerInterval + "ms").yellow, userFilter.yellow));
 
 	// Start the watcher.
-	new Watcher(workingDir, queue, function() {
+	new Watcher(workingDir, queue, userFilter, function() {
 		gracefulExit();
 		// Start the syncer.
 		new Syncer(targets.split(","), queue, syncerInterval);

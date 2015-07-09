@@ -4,10 +4,10 @@
 	"description": "Adobe AEM Synchronization Tool",
 	"author": "Michal Kochel <gavoja@gmail.com>",
 	"keywords": [
-    "AEM",
-    "CQ",
-    "Sling",
-    "Synchronization"
+	"AEM",
+	"CQ",
+	"Sling",
+	"Synchronization"
   ],
 	"homepage": "https://github.com/gavoja/aemsync",
 	"bugs": {

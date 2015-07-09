@@ -28,6 +28,7 @@ aemsync -t targets -w path_to_watch
 -w: Folder to watch; default is current.
 -i: Update interval; default is 300ms.
 -d: Enable debug mode.
+-f: Anymatch filter; any file matching the pattern will be skipped.
 ```
 
 ### Example
