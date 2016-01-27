@@ -308,8 +308,8 @@ function Pusher(targets, interval, sync) {
 			// Add NT_FOLDER if needed.
 			var contentXml = subItem + "/.content.xml";
 			var hasContentXml = fs.existsSync(contentXml);
-			var isContentFolder = path.basename(subItem) === '_jcr_content';
-			if (!isContentFolder && !hasContentXml) {
+			var hasContentFolder = subItem.indexOf('/_jcr_content') !== -1;
+			if (!hasContentFolder && !hasContentXml) {
 				pack.zip.addLocalFile(NT_FOLDER, getZipPath(contentXml));
 				debug("           Added as nt:folder.")
 			}
