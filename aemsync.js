@@ -118,33 +118,36 @@ function releaseLock(sync) {
 // -----------------------------------------------------------------------------
 
 /** Creates zip archive. */
-function Zip() {
-	var zipPath = _debugMode ? __dirname + ZIP_NAME : os.tmpdir() + ZIP_NAME;
-	var zip = archiver("zip");
+class Zip {
+	constructor() {
+		this.path = _debugMode ? __dirname + ZIP_NAME : os.tmpdir() + ZIP_NAME;
+		this.zip = archiver("zip");
 
-	debug("Creating archive: " + zipPath);
-	var output = fs.createWriteStream(zipPath);
-	zip.pipe(output);
+		debug("Creating archive: " + this.path);
+		this.output = fs.createWriteStream(this.path);
+		this.zip.pipe(this.output);
+	}
 
-	this.addLocalFile = function (localPath, zipPath) {
+	addLocalFile(localPath, zipPath) {
 		debug("  Zipping: " + zipPath);
-		zip.append(fs.createReadStream(localPath), {
+		this.zip.append(fs.createReadStream(localPath), {
 			name: zipPath
 		});
-	};
+	}
 
-	this.addFile = function (content, zipPath) {
+	addFile(content, zipPath) {
 		debug("  Zipping: " + zipPath);
-		zip.append(content, {
+		this.zip.append(content, {
 			name: zipPath
 		});
-	};
+	}
 
-	this.save = function (onSave) {
-		output.on("close", function () {
-			onSave(zipPath);
+	save(onSave) {
+		var that = this;
+		this.output.on("close", function () {
+			onSave(that.path);
 		});
-		zip.finalize(); // Trigers the above.
+		this.zip.finalize(); // Trigers the above.
 	};
 }
 
@@ -159,9 +162,8 @@ class Sync {
 	}
 }
 
-
 // -----------------------------------------------------------------------------
-// SYNCER
+// PUSHER
 // -----------------------------------------------------------------------------
 
 /** Pushes changes to AEM. */
@@ -391,23 +393,86 @@ function Pusher(targets, interval, sync) {
 // WATCHER
 // -----------------------------------------------------------------------------
 
-/** Watches for file system changes. */
-function Watcher(pathToWatch, userFilter, sync, callback) {
-	fs.exists(pathToWatch, function (exists) {
-		if (!exists) {
-			console.error("Invalid path: " + pathToWatch);
+//** Watches for file system changes. */
+class Watcher {
+	constructor(workingDir, userFilter, sync, callback) {
+		this.sync = sync;
+
+		var that = this;
+		fs.exists(workingDir, function (exists) {
+			if (!exists) {
+				console.error("Invalid path: " + workingDir);
+				return;
+			}
+
+			that.processWorkingDir(workingDir, userFilter, callback)
+		});
+	}
+
+	processWorkingDir(workingDir, userFilter, callback) {
+		// Get paths to watch.
+		console.log("Scanning for 'jcr_root/*' folders ...");
+		var pathsToWatch = this.getPathsToWatch(workingDir);
+		if (pathsToWatch.length === 0) {
+			console.log("No 'jcr_root/*' folders found.");
 			return;
 		}
 
-		console.log("Scanning for 'jcr_root/*' folders ...");
+		// Get ignored.
+		var ignored = [this.skipHiddenFilter];
+		if (userFilter) {
+			ignored.push(userFilter);
+		}
 
-		// Get paths to watch.
-		// By ignoring the lookup of certain folders (e.g. dot-prefixed or
-		// "target"), we speed up chokidar's initial scan, as the paths are
-		// narrowed down to "jcr_root/*" only.
-		// It is set to work one level below "jcr_root" intentionally in order
-		// to prevent accidental removal of first level nodes such as "libs".
-		var pathsToWatch = walkSync(pathToWatch, function (localPath, stats) {
+		this.startChokidar(pathsToWatch, userFilter, ignored, callback);
+	}
+
+	// Ignore all dot-prefixed folders and files except ".content.xml".
+	skipHiddenFilter(localPath) {
+		var baseName = path.basename(localPath);
+		if (baseName.indexOf(".") === 0 && baseName !== ".content.xml") {
+			return true;
+		}
+
+		return false;
+	}
+
+	startChokidar(pathsToWatch, userFilter, ignored, callback) {
+		// Start watcher.
+		var watcher = chokidar.watch(pathsToWatch, {
+			ignored: ignored,
+			persistent: true
+		});
+
+		// When scan is complete.
+		var that = this;
+		watcher.on("ready", function () {
+			console.log(util.format("Found %s 'jcr_root/*' folder(s).'",
+				pathsToWatch.length));
+
+			// Just to print the message.
+			releaseLock(that.sync);
+
+			// Detect all changes.
+			watcher.on("all", function (eventName, localPath) {
+				localPath = cleanPath(localPath);
+				debug("Change detected: " + localPath);
+				that.sync.queue.push(localPath);
+			});
+
+			// Fire callback.
+			callback();
+		});
+	}
+
+	// Get paths to watch.
+	// By ignoring the lookup of certain folders (e.g. dot-prefixed or
+	// "target"), we speed up chokidar's initial scan, as the paths are
+	// narrowed down to "jcr_root/*" only.
+	// It is set to work one level below "jcr_root" intentionally in order
+	// to prevent accidental removal of first level nodes such as "libs".
+	getPathsToWatch(workingDir) {
+		return walkSync(workingDir, function (localPath, stats) {
 			// Skip non-directories.
 			if (stats.isDirectory() === false) {
 				return true;
@@ -438,55 +503,7 @@ function Watcher(pathToWatch, userFilter, sync, callback) {
 				return true;
 			}
 		});
-
-		// Return if nothing to watch.
-		if (pathsToWatch.length === 0) {
-			console.log("No 'jcr_root/*' folders found.");
-			return;
-		}
-
-		// Ignore all dot-prefixed folders and files except ".content.xml".
-		var skipHidden = function (localPath) {
-			var baseName = path.basename(localPath);
-			if (baseName.indexOf(".") === 0 && baseName !== ".content.xml") {
-				return true;
-			}
-
-			return false;
-		};
-
-		var ignored = [skipHidden];
-
-		// Apply user filter.
-		if (userFilter) {
-			ignored.push(userFilter);
-		}
-
-		// Start watcher.
-		var watcher = chokidar.watch(pathsToWatch, {
-			ignored: ignored,
-			persistent: true
-		});
-
-		// When scan is complete.
-		watcher.on("ready", function () {
-			console.log(util.format("Found %s 'jcr_root/*' folder(s).'",
-				pathsToWatch.length));
-
-			// Just to print the message.
-			releaseLock(sync);
-
-			// Detect all changes.
-			watcher.on("all", function (eventName, localPath) {
-				localPath = cleanPath(localPath);
-				debug("Change detected: " + localPath);
-				sync.queue.push(localPath);
-			});
-
-			// Fire callback.
-			callback();
-		});
-	});
+	}
 }
 
 // -----------------------------------------------------------------------------
