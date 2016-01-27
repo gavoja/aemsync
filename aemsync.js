@@ -1,4 +1,4 @@
-/*jslint node: true, multistr: true*/
+/*jslint node: true*/
 "use strict";
 
 // -----------------------------------------------------------------------------
@@ -6,80 +6,51 @@
 // -----------------------------------------------------------------------------
 
 // Built-in packages
-var os = require("os");
-var path = require("path");
-var parseUrl = require("url").parse;
-var StringDecoder = require("string_decoder").StringDecoder;
+const os = require("os");
+const path = require("path");
+const parseUrl = require("url").parse;
+const StringDecoder = require("string_decoder").StringDecoder;
 
 // NPM packages
-var fs = require("graceful-fs");
-var minimist = require("minimist");
-var archiver = require("archiver"); // TODO: consider using zip-stream for less dependencies.
-var FormData = require("form-data");
-var chokidar = require("chokidar");
-var util = require("util");
+const fs = require("graceful-fs");
+const minimist = require("minimist");
+const archiver = require("archiver"); // TODO: consider using zip-stream for less dependencies.
+const FormData = require("form-data");
+const chokidar = require("chokidar");
+const util = require("util");
 require('colors');
 
 // Constants
-var MSG_HELP = "Usage: aemsync -t targets (defult is 'http://admin:admin@localhost:4502) -w path_to_watch (default is current)\nWebsite: https://github.com/gavoja/aemsync\n";
-var MSG_INIT = "Working directory: %s\nTarget(s): %s\nUpdate interval: %s\nFilter: %s\n";
-var MSG_EXIT = "\nGracefully shutting down from SIGINT (Ctrl-C)...";
-var MSG_INST = "Deploying to [%s]: %s";
-var FILTER_WRAPPER = '<?xml version="1.0" encoding="UTF-8"?>\n' +
+const MSG_HELP = "Usage: aemsync -t targets (defult is 'http://admin:admin@localhost:4502) -w path_to_watch (default is current)\nWebsite: https://github.com/gavoja/aemsync\n";
+const MSG_INIT = "Working directory: %s\nTarget(s): %s\nUpdate interval: %s\nFilter: %s\n";
+const MSG_EXIT = "\nGracefully shutting down from SIGINT (Ctrl-C)...";
+const MSG_INST = "Deploying to [%s]: %s";
+const FILTER_WRAPPER = '<?xml version="1.0" encoding="UTF-8"?>\n' +
 '<workspaceFilter version="1.0">%s\n' +
 '</workspaceFilter>';
-var FILTER_CHILDREN = '\n' +
-'  <filter root="%s">\n' +
-'    <exclude pattern="%s/.*" />\n' +
-'    <include pattern="%s" />\n' +
-'   <include pattern="%s/.*" />\n' +
-'  </filter>';
-var FILTER = '\n' +
+const FILTER = '\n' +
 '  <filter root="%s" />';
-var FILTER_ZIP_PATH = "META-INF/vault/filter.xml";
-var NT_FOLDER = __dirname + "/data/nt_folder/.content.xml";
-var ZIP_NAME = "/aemsync.zip";
-var RE_DIR = /^.*\.dir$/;
-var RE_CONTENT = /.*\.content\.xml$/;
-var RE_STATUS = /code="([0-9]+)">(.*)</;
-var RE_WATCH_PATH = /^.*\/jcr_root\/[^\/]*$/;
-var PACKAGE_MANAGER_URL = "/crx/packmgr/service.jsp";
-var DEFAULT_TARGET = "http://admin:admin@localhost:4502";
-var DEFAULT_WORKING_DIR = ".";
-var DEFAULT_SYNCER_INTERVAL = 300;
+const FILTER_ZIP_PATH = "META-INF/vault/filter.xml";
+const NT_FOLDER = __dirname + "/data/nt_folder/.content.xml";
+const ZIP_NAME = "/aemsync.zip";
+const RE_SPECIAL = /(.*?)\/(_jcr_content|[^\/]+\.dir|\.content\.xml).*/;
+const RE_STATUS = /code="([0-9]+)">(.*)</;
+const RE_WATCH_PATH = /^.*\/jcr_root\/[^\/]*$/;
+const PACKAGE_MANAGER_URL = "/crx/packmgr/service.jsp";
+const DEFAULT_TARGET = "http://admin:admin@localhost:4502";
+const DEFAULT_WORKING_DIR = ".";
+const DEFAULT_SYNCER_INTERVAL = 300;
 
 // Global variables.
-var queue = [];
-var debugMode = false;
-var maybeeExit = false;
-var lock = 0;
+var _debugMode = false;
 
 // -----------------------------------------------------------------------------
 // HELPERS
 // -----------------------------------------------------------------------------
 
-/** Graceful exit. */
-function gracefulExit() {
-
-	process.on("SIGINT", function () {
-		console.log(MSG_EXIT);
-		maybeeExit = true;
-	});
-
-	// Proper SIGINT handling on Windows.
-	if (process.platform === "win32") {
-		require("readline").createInterface({
-			input: process.stdin,
-			output: process.stdout
-		}).on("SIGINT", function () {
-			process.emit("SIGINT");
-		});
-	}
-}
-
 /** Prints debug message. */
 function debug(msg) {
-	if (debugMode) {
+	if (_debugMode) {
 		msg = typeof msg === "string" ? msg.grey : msg;
 		console.log(msg);
 	}
@@ -132,22 +103,13 @@ function walkSync(localPath, returnCallback) {
 	return results;
 }
 
-/** Handles lock releasing. */
-function releaseLock() {
-	if (lock > 0) {
-		--lock;
+/** Handles _lock releasing. */
+function releaseLock(sync) {
+	if (sync.lock > 0) {
+		--sync.lock;
 	}
-	if (lock === 0) {
+	if (sync.lock === 0) {
 		console.log("\nAwaiting file changes...");
-	}
-}
-
-/** Handles script exit. */
-function handleExit() {
-	if (maybeeExit === true) {
-		// Graceful exit.
-		console.log("Exit.");
-		process.exit();
 	}
 }
 
@@ -157,7 +119,7 @@ function handleExit() {
 
 /** Creates zip archive. */
 function Zip() {
-	var zipPath = debugMode ? __dirname + ZIP_NAME : os.tmpdir() + ZIP_NAME;
+	var zipPath = _debugMode ? __dirname + ZIP_NAME : os.tmpdir() + ZIP_NAME;
 	var zip = archiver("zip");
 
 	debug("Creating archive: " + zipPath);
@@ -187,11 +149,24 @@ function Zip() {
 }
 
 // -----------------------------------------------------------------------------
+// SYNC
+// -----------------------------------------------------------------------------
+
+class Sync {
+	constructor() {
+		this.queue = [];
+		this.lock = 0;
+	}
+}
+
+
+// -----------------------------------------------------------------------------
 // SYNCER
 // -----------------------------------------------------------------------------
 
 /** Pushes changes to AEM. */
-function Syncer(targets, queue, interval) {
+function Pusher(targets, interval, sync) {
+
 	/** Submits the package manager form. */
 	var sendForm = function (zipPath) {
 		debug("Posting...");
@@ -202,7 +177,7 @@ function Syncer(targets, queue, interval) {
 
 	var sendFormToTarget = function (zipPath, target) {
 		var params = parseUrl(target);
-		var auth = new Buffer(params.auth).toString('base64');
+		var auth = new Buffer(params.auth).toString("base64");
 		var timestamp = Date.now();
 
 		var options = {};
@@ -214,9 +189,11 @@ function Syncer(targets, queue, interval) {
 		};
 
 		var form = new FormData();
-		form.append('file', fs.createReadStream(zipPath));
-		form.append('force', 'true');
-		form.append('install', 'true');
+		form.append("file", fs.createReadStream(zipPath));
+		form.append("force", "true");
+		form.append("install", "true");
+		// releaseLock(sync);
+		// return;
 		form.submit(options, function (err, res) {
 			onSubmit(err, res, zipPath, target, timestamp);
 		});
@@ -228,11 +205,11 @@ function Syncer(targets, queue, interval) {
 		if (!res) {
 			console.log(util.format(MSG_INST, host.magenta, err.code.red));
 			// Do not retry on server error. Servler is likely to be down.
-			releaseLock();
+			releaseLock(sync);
 			return;
 		}
 
-		var decoder = new StringDecoder('utf8');
+		var decoder = new StringDecoder("utf8");
 		var output = "\nOutput from " + host + ":";
 		res.on("data", function (chunk) {
 
@@ -261,7 +238,7 @@ function Syncer(targets, queue, interval) {
 				console.log(util.format(MSG_INST, host.magenta, msg.red));
 			}
 
-			releaseLock();
+			releaseLock(sync);
 		});
 	};
 
@@ -301,8 +278,7 @@ function Syncer(targets, queue, interval) {
 		console.log("ADD: " + item.substring(item.indexOf("jcr_root")).yellow);
 		var filterPath = getFilterPath(item);
 		var dirName = path.dirname(filterPath);
-		pack.filters += util.format(FILTER_CHILDREN, dirName, dirName,
-				filterPath, filterPath);
+		pack.filters += util.format(FILTER, filterPath);
 
 		// Add file.
 		if (fs.lstatSync(item).isFile()) {
@@ -327,10 +303,13 @@ function Syncer(targets, queue, interval) {
 				return;
 			}
 
-			// Add NT_FOLDER if no .content.xml.
+			// Add NT_FOLDER if needed.
 			var contentXml = subItem + "/.content.xml";
-			if (!fs.existsSync(contentXml)) {
+			var hasContentXml = fs.existsSync(contentXml);
+			var isContentFolder = path.basename(subItem) === '_jcr_content';
+			if (!isContentFolder && !hasContentXml) {
 				pack.zip.addLocalFile(NT_FOLDER, getZipPath(contentXml));
+				debug("           Added as nt:folder.")
 			}
 		});
 	};
@@ -345,14 +324,10 @@ function Syncer(targets, queue, interval) {
 
 	/** Processes queue items; duplicates and descendants are removed. */
 	var processQueueItem = function (item, dict) {
-		var parentItem = path.dirname(item);
 
-		// Try the parent if item is "special".
-		if (item.match(RE_CONTENT) || item.match(RE_DIR) ||
-				parentItem.match(RE_DIR)) {
-			processQueueItem(parentItem, dict);
-			return;
-		}
+		// If item is special, use the parent.
+		item = item.replace(RE_SPECIAL, '$1');
+		console.log(item);
 
 		// Make sure only parent items are processed.
 		for (var dictItem in dict) {
@@ -381,14 +356,12 @@ function Syncer(targets, queue, interval) {
 		// Wait for the previous package to install.
 		// Otherwise an error may occur if two concurrent packages try to make
 		// changes to the same node.
-		if (lock > 0) {
+		if (sync.lock > 0) {
 			return;
 		}
 
-		handleExit();
-
 		// Dequeue items (dictionary takes care of duplicates).
-		while ((i = queue.pop())) {
+		while ((i = sync.queue.pop())) {
 			processQueueItem(i, dict);
 		}
 
@@ -397,7 +370,7 @@ function Syncer(targets, queue, interval) {
 			return;
 		}
 
-		lock = targets.length;
+		sync.lock = targets.length;
 
 		var pack = createPackage();
 		for (item in dict) {
@@ -410,6 +383,7 @@ function Syncer(targets, queue, interval) {
 		installPackage(pack);
 	};
 
+	// captureSigint();
 	setInterval(this.processQueue, interval);
 }
 
@@ -418,7 +392,7 @@ function Syncer(targets, queue, interval) {
 // -----------------------------------------------------------------------------
 
 /** Watches for file system changes. */
-function Watcher(pathToWatch, queue, userFilter, callback) {
+function Watcher(pathToWatch, userFilter, sync, callback) {
 	fs.exists(pathToWatch, function (exists) {
 		if (!exists) {
 			console.error("Invalid path: " + pathToWatch);
@@ -451,7 +425,7 @@ function Watcher(pathToWatch, queue, userFilter, callback) {
 				return true;
 			}
 
-			// Skip directories inside two levels inside "jcr_root".
+			// Skip directories two levels inside "jcr_root".
 			var parentParentDir = path.basename(
 				path.dirname(path.dirname(localPath)));
 			if (i !== -1 && parentParentDir === "jcr_root") {
@@ -498,13 +472,15 @@ function Watcher(pathToWatch, queue, userFilter, callback) {
 		watcher.on("ready", function () {
 			console.log(util.format("Found %s 'jcr_root/*' folder(s).'",
 				pathsToWatch.length));
-			releaseLock();
+
+			// Just to print the message.
+			releaseLock(sync);
 
 			// Detect all changes.
 			watcher.on("all", function (eventName, localPath) {
 				localPath = cleanPath(localPath);
 				debug("Change detected: " + localPath);
-				queue.push(localPath);
+				sync.queue.push(localPath);
 			});
 
 			// Fire callback.
@@ -527,7 +503,7 @@ function main() {
 	}
 
 	// Set debug mode.
-	debugMode = args.d;
+	_debugMode = args.d;
 
 	// Get configuration.
 	var targets = args.t ? args.t : DEFAULT_TARGET;
@@ -540,12 +516,18 @@ function main() {
 	console.log(util.format(MSG_INIT, workingDir.yellow, targets.yellow,
 		(syncerInterval + "ms").yellow, userFilter.yellow));
 
+	// Create synchronisation object.
+	var sync = new Sync();
+
 	// Start the watcher.
-	new Watcher(workingDir, queue, userFilter, function() {
-		gracefulExit();
+	new Watcher(workingDir, userFilter, sync, function() {
 		// Start the syncer.
-		new Syncer(targets.split(","), queue, syncerInterval);
+		new Pusher(targets.split(","), syncerInterval, sync);
 	});
+
+	exports.Sync = Sync;
+	exports.Pusher = Pusher;
+	exports.Watcher = Watcher;
 }
 
 main();

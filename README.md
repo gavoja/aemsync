@@ -21,6 +21,7 @@ npm install aemsync -g
 
 ### Usage
 
+Commandline
 ```
 aemsync -t targets -w path_to_watch
 
@@ -29,6 +30,24 @@ aemsync -t targets -w path_to_watch
 -i: Update interval; default is 300ms.
 -d: Enable debug mode.
 -f: Anymatch filter; any file matching the pattern will be skipped.
+```
+
+JavaScript
+```JavaScript
+// Synchronisation object.
+var sync = { "queue": [], "lock": 0 };
+var workingDir = "~/workspace/my_project"~;
+var targets = [
+  "http://admin:admin@localhost:4502",
+  "http://admin:admin@localhost:4503"];
+var userFilter = "";
+var syncerInterval = 300;
+
+// Start the watcher.
+new Watcher(workingDir, userFilter, sync, function() {
+  // Start the syncer.
+  new Syncer(targets, syncerInterval, sync);
+});
 ```
 
 ### Example
