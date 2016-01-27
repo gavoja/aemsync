@@ -28,39 +28,36 @@ aemsync -t targets -w path_to_watch
 -t: Comma separated list of target hosts; default is http://admin:admin@localhost:4502.
 -w: Folder to watch; default is current.
 -i: Update interval; default is 300ms.
--d: Enable debug mode.
 -f: Anymatch filter; any file matching the pattern will be skipped.
+-d: Enable debug mode.
 ```
-
-JavaScript
-```JavaScript
-// Synchronisation object.
-var sync = { "queue": [], "lock": 0 };
-var workingDir = "~/workspace/my_project"~;
-var targets = [
-  "http://admin:admin@localhost:4502",
-  "http://admin:admin@localhost:4503"];
-var userFilter = "";
-var syncerInterval = 300;
-
-// Start the watcher.
-new Watcher(workingDir, userFilter, sync, function() {
-  // Start the syncer.
-  new Syncer(targets, syncerInterval, sync);
-});
-```
-
-### Example
 
 ```
 aemsync -t http://admin:admin@localhost:4502,http://admin:admin@localhost:4503 -w ~/workspace/my_project
 ```
 
+JavaScript
+```JavaScript
+const aemsync = require('aemsync');
+
+var sync = new aemsync.Sync();               // Synchronisation object.
+var workingDir = "~/workspace/my_project"~;
+var targets = [
+  "http://admin:admin@localhost:4502",
+  "http://admin:admin@localhost:4503"];
+var userFilter = "*.orig";                   // Skip merge files.
+var syncerInterval = 300;
+
+new aemsync.Watcher(workingDir, userFilter, sync, function() {
+  new aemsync.Pusher(targets, syncerInterval, sync);
+});
+```
+
 ### Description
 
-When run, it scans for `jcr_root/*` folders within the `path_to_watch` (dot-prefixed and `target` folders are omitted). This may take a while depending on the size. After the scan is done, file system changes inside those folders are detected and deployed to AEM instance(s) as a package.
+When run, the Watcher scans for `jcr_root/*` folders within the `path_to_watch` (dot-prefixed and "target" folders are omitted). This may take a while depending on the size. After the scan is done, file system changes inside those folders are detected and deployed to AEM instance(s) as a package.
 
-Update interval is the time the syncer waits for file changes changes before the package is created. In case of multiple file changes (e.g. switching between code branches), creating a new package per file should be avoided and instead, all changes should be pushed in one go. Lowering the value decreases the delay for a single file change but can increase the delay for multiple file changes. If you are unsure, please leave the default value.
+Update interval is the time the Pusher waits for file changes changes before the package is created. In case of multiple file changes (e.g. switching between code branches), creating a new package per file should be avoided and instead, all changes should be pushed in one go. Lowering the value decreases the delay for a single file change but may increase the delay for multiple file changes. If you are unsure, please leave the default value.
 
 ### Known issues
 

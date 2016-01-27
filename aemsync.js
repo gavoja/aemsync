@@ -42,7 +42,7 @@ const DEFAULT_WORKING_DIR = ".";
 const DEFAULT_SYNCER_INTERVAL = 300;
 
 // Global variables.
-var _debugMode = false;
+var DEBUG_MODE = false;
 
 // -----------------------------------------------------------------------------
 // HELPERS
@@ -50,7 +50,7 @@ var _debugMode = false;
 
 /** Prints debug message. */
 function debug(msg) {
-	if (_debugMode) {
+	if (DEBUG_MODE) {
 		msg = typeof msg === "string" ? msg.grey : msg;
 		console.log(msg);
 	}
@@ -120,7 +120,7 @@ function releaseLock(sync) {
 /** Creates zip archive. */
 class Zip {
 	constructor() {
-		this.path = _debugMode ? __dirname + ZIP_NAME : os.tmpdir() + ZIP_NAME;
+		this.path = DEBUG_MODE ? __dirname + ZIP_NAME : os.tmpdir() + ZIP_NAME;
 		this.zip = archiver("zip");
 
 		debug("Creating archive: " + this.path);
@@ -465,12 +465,13 @@ class Watcher {
 		});
 	}
 
-	// Get paths to watch.
-	// By ignoring the lookup of certain folders (e.g. dot-prefixed or
-	// "target"), we speed up chokidar's initial scan, as the paths are
-	// narrowed down to "jcr_root/*" only.
-	// It is set to work one level below "jcr_root" intentionally in order
-	// to prevent accidental removal of first level nodes such as "libs".
+	/** Get paths to watch.
+	 * By ignoring the lookup of certain folders (e.g. dot-prefixed or
+	 * "target"), we speed up chokidar's initial scan, as the paths are
+	 * narrowed down to "jcr_root/*" only.
+	 * It is set to work one level below "jcr_root" intentionally in order
+	 * to prevent accidental removal of first level nodes such as "libs".
+	 */
 	getPathsToWatch(workingDir) {
 		return walkSync(workingDir, function (localPath, stats) {
 			// Skip non-directories.
@@ -520,7 +521,7 @@ function main() {
 	}
 
 	// Set debug mode.
-	_debugMode = args.d;
+	DEBUG_MODE = args.d;
 
 	// Get configuration.
 	var targets = args.t ? args.t : DEFAULT_TARGET;
@@ -541,10 +542,12 @@ function main() {
 		// Start the syncer.
 		new Pusher(targets.split(","), syncerInterval, sync);
 	});
-
-	exports.Sync = Sync;
-	exports.Pusher = Pusher;
-	exports.Watcher = Watcher;
 }
 
-main();
+if (require.main === module) {
+	main();
+}
+
+exports.Sync = Sync;
+exports.Pusher = Pusher;
+exports.Watcher = Watcher;
