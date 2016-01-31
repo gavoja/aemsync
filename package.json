@@ -1,33 +1,34 @@
 {
-	"name": "aemsync",
-	"version": "0.8.0",
-	"description": "Adobe AEM Synchronization Tool",
-	"author": "Michal Kochel <gavoja@gmail.com>",
-	"keywords": [
-	"AEM",
-	"CQ",
-	"Sling",
-	"Synchronization"
+  "name": "aemsync",
+  "version": "1.0.0",
+  "description": "Adobe AEM Synchronization Tool",
+  "author": "Michal Kochel <gavoja@gmail.com>",
+  "keywords": [
+    "AEM",
+    "CQ",
+    "Sling",
+    "Synchronization"
   ],
-	"homepage": "https://github.com/gavoja/aemsync",
-	"bugs": {
-		"url": "https://github.com/gavoja/aemsync/issues"
-	},
-	"repository": {
-		"type": "git",
-		"url": "https://github.com/gavoja/aemsync.git"
-	},
-	"main": "aemsync.js",
-	"dependencies": {
-		"archiver": "~0.12.0",
-		"form-data": "~0.1.4",
-		"minimist": "~0.2.0",
-		"graceful-fs": "~3.0.4",
-		"colors": "~1.0.3",
-		"chokidar": "~1.0.3"
-	},
-	"bin": {
-		"aemsync": "./bin/aemsync"
-	},
-	"license": "WTFPL 2"
+  "homepage": "https://github.com/gavoja/aemsync",
+  "bugs": {
+    "url": "https://github.com/gavoja/aemsync/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gavoja/aemsync.git"
+  },
+  "main": "index.js",
+  "dependencies": {
+    "archiver": "~0.12.0",
+    "chalk": "^1.1.1",
+    "chokidar": "~1.0.3",
+    "colors": "~1.0.3",
+    "form-data": "~0.1.4",
+    "graceful-fs": "~3.0.4",
+    "minimist": "~0.2.0"
+  },
+  "bin": {
+    "aemsync": "./bin/aemsync"
+  },
+  "license": "WTFPL 2"
 }
