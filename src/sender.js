@@ -2,9 +2,11 @@
 
 const fs = require('graceful-fs');
 const parseUrl = require('url').parse;
-const log = require('./log');
 const FormData = require('form-data');
+const StringDecoder = require("string_decoder").StringDecoder;
+const log = require('./log');
 
+const PACKAGE_MANAGER_URL = "/crx/packmgr/service.jsp";
 const RE_STATUS = /code="([0-9]+)">(.*)</;
 
 class Sender {
@@ -14,78 +16,76 @@ class Sender {
 
   /** Submits the package manager form. */
   send(zipPath, callback) {
-    log.debug('Posting...');
-    for (var i = 0; i < targets.length; ++i) {
-      this.sendFormToTarget(zipPath, targets[i], callback);
+    log.debug('Posting...')
+    for (let i = 0; i < this.targets.length; ++i) {
+      this.sendFormToTarget(zipPath, this.targets[i], callback)
     }
   }
 
   sendFormToTarget(zipPath, target, callback) {
-    var params = parseUrl(target);
-    var auth = new Buffer(params.auth).toString('base64');
-    var timestamp = Date.now();
+    let params = parseUrl(target)
+    let auth = new Buffer(params.auth).toString('base64')
+    let timestamp = Date.now()
 
-    var options = {};
-    options.path = PACKAGE_MANAGER_URL;
-    options.port = params.port;
-    options.host = params.hostname;
+    let options = {}
+    options.path = PACKAGE_MANAGER_URL
+    options.port = params.port
+    options.host = params.hostname
     options.headers = {
       'Authorization': 'Basic ' + auth
-    };
+    }
 
-    var form = new FormData();
-    form.append('file', fs.createReadStream(zipPath));
-    form.append('force', 'true');
-    form.append('install', 'true');
+    let form = new FormData()
+    form.append('file', fs.createReadStream(zipPath))
+    form.append('force', 'true')
+    form.append('install', 'true')
 
-    var that = this;
+    let that = this
     form.submit(options, function (err, res) {
-      that.onSubmit(err, res, zipPath, target, timestamp, callback);
-    });
-  };
+      that.onSubmit(err, res, zipPath, target, timestamp, callback)
+    })
+  }
 
   /** Package install submit callback */
   onSubmit(err, res, zipPath, target, timestamp, callback) {
-    var host = target.substring(target.indexOf('@') + 1);
+    let host = target.substring(target.indexOf('@') + 1)
 
     // Server error.
     if (!res) {
-      log.error(`Deploying to [${host}]: ${err.code}`);
-      callback();
-      return;
+      let delta = Date.now() - timestamp
+      let time = new Date().toISOString()
+      return callback(err.code, host, delta, time)
     }
 
-    var decoder = new StringDecoder('utf8');
-    var output = [`Output from ${host}:`];
+    let decoder = new StringDecoder('utf8')
+    let output = [`Output from ${host}:`]
     res.on('data', function (chunk) {
 
       // Get message and remove new line.
-      var textChunk = decoder.write(chunk);
-      textChunk = textChunk.substring(0, textChunk.length - 1);
-      output.push(textChunk);
+      let textChunk = decoder.write(chunk)
+      textChunk = textChunk.substring(0, textChunk.length - 1)
+      output.push(textChunk)
 
       // Parse message.
-      var match = RE_STATUS.exec(textChunk);
+      let match = RE_STATUS.exec(textChunk)
       if (match === null || match.length !== 3) {
-        return;
+        return
       }
 
-      var code = match[1];
-      var msg = match[2];
+      let code = match[1]
+      let msg = match[2]
 
-      log.debug('\n', output.join('\n'));
+      output = output.join('\n').replace(/\r/g, '')
+      log.group()
+      log.debug(output)
+      log.groupEnd()
 
-      if (code === '200') {
-        var delta = Date.now() - timestamp;
-        var time = new Date().toISOString();
-        log.info(`completed in ${delta} ms at ${time}`);
-      } else { // Error.
-        log.error(`Deploying to [${host}]: ${msg}`);
-      }
-
-      callback()
+      let delta = Date.now() - timestamp
+      let time = new Date().toISOString()
+      let err = code === '200' ? null : msg
+      callback(err, host, delta, time)
     });
   }
 }
 
-module.exports.Sender = Sender;
+module.exports.Sender = Sender

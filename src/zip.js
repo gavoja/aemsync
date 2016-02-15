@@ -1,31 +1,32 @@
-'use strict';
+'use strict'
 
-const archiver = require('archiver'); // TODO: consider using zip-stream for less dependencies.
-const fs = require('graceful-fs');
-const path = require('path');
-const log = require('./log.js');
+const archiver = require('archiver') // TODO: consider using zip-stream for less dependencies.
+const fs = require('graceful-fs')
+const path = require('path')
+const log = require('./log.js')
 
-const DEFAULT_ZIP_NAME = 'aemsync.zip';
+const DEFAULT_ZIP_NAME = 'aemsync.zip'
 
 class Zip {
 	constructor(zipPath) {
 		// TODO:  path.join(os.tmpdir(), DEFAULT_ZIP_NAME);
-		this.path = path.join(__dirname, '..', DEFAULT_ZIP_NAME);
-		this.zip = archiver('zip');
+		this.path = path.join(__dirname, '..', DEFAULT_ZIP_NAME)
+		this.zip = archiver('zip')
 
-		log.debug('Creating archive:', this.path);
-		this.output = fs.createWriteStream(this.path);
-		this.zip.pipe(this.output);
+		log.debug('Creating archive:', this.path)
+		this.output = fs.createWriteStream(this.path)
+		this.zip.pipe(this.output)
 	}
 
 	addLocalFile(localPath, zipPath) {
 		// Normalize slashes.
-		zipPath = zipPath.replace(/\\/g, '/');
-		
+		zipPath = zipPath.replace(/\\/g, '/')
+
 		// Only files can be zipped.
 		if (!fs.statSync(localPath).isFile()) {
-      return;
+      return
     }
+
 
 		log.debug('Zipping:', zipPath);
 		this.zip.append(fs.createReadStream(localPath), {
@@ -35,63 +36,63 @@ class Zip {
 
 	addLocalDirectory(localPath, zipPath, callback) {
 		if (!fs.statSync(localPath).isDirectory()) {
-			return;
+			return
 		}
 
-		var items = this.walkSync(localPath);
-		for (var i = 0; i < items.length; ++i) {
-			var subLocalPath = items[i];
-			var subZipPath = zipPath + subLocalPath.substr(localPath.length + 1);
-			 this.addLocalFile(subLocalPath, subZipPath);
-			 callback && callback(subLocalPath, subZipPath);
+		// Ensure slash.
+		zipPath = zipPath.endsWith('/') ? zipPath : `${zipPath}/`
+
+		let items = this.walkSync(localPath)
+		for (let i = 0; i < items.length; ++i) {
+			let subLocalPath = items[i]
+			let subZipPath = zipPath + subLocalPath.substr(localPath.length + 1)
+			 this.addLocalFile(subLocalPath, subZipPath)
+			 callback && callback(subLocalPath, subZipPath)
 		}
 	}
 
 	addFile(content, zipPath) {
-		log.debug('Zipping:', zipPath);
+		log.debug('Zipping:', zipPath)
 		this.zip.append(content, {
 			name: zipPath
 		});
 	}
 
 	/** Recursively walks over directory. */
-	walkSync(localPath, returnCallback) {
-		localPath = path.resolve(localPath);
+	walkSync(localPath) {
+		localPath = path.resolve(localPath)
 
-		var results = [];
-		var stats = fs.statSync(localPath);
-
-		// Check return condition.
-		if (returnCallback && returnCallback(localPath, stats)) {
-			return results;
-		}
+		let results = []
+		let stats = fs.statSync(localPath)
 
 		// Add current item.
-		results.push(localPath);
+		results.push(localPath)
 
 		// No need for recursion if not a directory.
 		if (!stats.isDirectory()) {
-			return results;
+			return results
 		}
 
 		// Iterate over list of children.
-	  var that = this;
-		var children = fs.readdirSync(localPath);
+	  let that = this
+		let children = fs.readdirSync(localPath)
 
-	  for (var i = 0; i < children.length; ++i) {
-	    var child = path.resolve(localPath, children[i]);
-	    results = results.concat(this.walkSync(child, returnCallback));
+	  for (let i = 0; i < children.length; ++i) {
+	    let child = path.resolve(localPath, children[i])
+	    results = results.concat(this.walkSync(child))
 	  }
 
-		return results;
+		return results
 	}
 
 	save(callback) {
-		var that = this;
-		this.output.on('close', function () {
-			callback(that.path);
+		let that = this
+
+		this.output.on('close', () => {
+			callback(that.path)
 		});
-		this.zip.finalize(); // Trigers the above.
+
+		this.zip.finalize() // Trigers the above.
 	}
 }
 

@@ -1,31 +1,31 @@
-'use strict';
+'use strict'
 
-const ContentHandler = require('./handlers/content-handler.js').ContentHandler;
-const Package = require('./package.js').Package;
-const Sender = require('./sender.js').Sender;
-const log = require('./log.js');
+const chalk = require('chalk')
+const ContentHandler = require('./handlers/content-handler.js').ContentHandler
+const Package = require('./package.js').Package
+const Sender = require('./sender.js').Sender
+const log = require('./log.js')
 
 /** Pushes changes to AEM. */
 class Pusher {
   constructor(targets, interval) {
     this.lock = 0;
-    this.queue = [];
-    this.targets = targets;
-    this.interval = interval || 300;
-    this.handlers = [new ContentHandler()];
+    this.queue = []
+    this.targets = targets
+    this.interval = interval || 300
+    this.handlers = [new ContentHandler()]
 
-    this.sender = new Sender(targets);
+    this.sender = new Sender(targets)
   }
 
   start() {
-    console.log('Setting interval', this.interval);
     setInterval(() => {
-      this.processQueue();
-    }, this.interval);
+      this.processQueue()
+    }, this.interval)
   }
 
   addItem(localPath) {
-    this.queue.push(localPath);
+    this.queue.push(localPath)
   }
 
   /** Processes queue. */
@@ -37,44 +37,54 @@ class Pusher {
 			return;
 		}
 
-    // Dequeue items and remove duplicates.
-    var dict = {};
+    // Get unique list of local paths.
+    let dict = {};
     while(this.queue.length > 0) {
-      dict[this.queue.pop()] = true;
+      dict[this.queue.pop()] = true
     }
+    let localPaths = Object.keys(dict)
 
-    // Convert items back to list.
-    var items = Object.keys(dict);
-    if (items.length === 0) {
-      return;
-    }
-
-    // Lock!
-    this.lock = this.targets.length;
-
-    // Create package.
-    var pack = new Package();
-
-    // Process items with all the handlers.
-    for (var i = 0; i < this.handlers.length; ++i) {
-      for (var j = 0; j < items.length; ++j) {
-        this.handlers[i].process(pack, items[j]);
+    // Process local paths with all the handlers.
+    let items = []
+    for (let i = 0; i < this.handlers.length; ++i) {
+      for (let j = 0; j < localPaths.length; ++j) {
+        this.handlers[i].process(items, localPaths[j])
       }
     }
 
+    if (items.length === 0) {
+      return
+    }
+
+    // Create package.
+    let pack = new Package()
+    for (let i = 0; i < items.length; ++i) {
+      let item = items[i]
+      log.info(item.action, chalk.yellow(item.zipPath))
+      pack.update(item.localPath, item.zipPath, item.action)
+    }
+
     // Save the package.
-    log.group();
+    log.group()
+    this.lock = this.targets.length
     pack.save((packagePath) => {
-      this.onSend(packagePath);
-      log.groupEnd();
+      this.onSend(packagePath)
     });
 	}
 
   onSend(packagePath) {
-    this.lock == 0;
+    this.sender.send(packagePath, (err, host, delta, time) => {
+      if (err) {
+        log.info(`Deploying to [${chalk.yellow(host)}]: ${chalk.red(err)}`)
+      } else {
+        log.info(`Deploying to [${chalk.yellow(host)}]:`, chalk.green('OK'))
+      }
+      log.info(`Completed in ${delta} ms at ${time}`)
 
-    // TODO: Use sender to send to targets.
+      log.groupEnd()
+      this.lock -= 1
+    });
   }
 }
 
-module.exports.Pusher = Pusher;
+module.exports.Pusher = Pusher

@@ -1,60 +1,60 @@
 'use strict';
 
-const Console = require('console').Console;
-const chalk = require('chalk');
-const util = require('util');
+const Console = require('console').Console
+const chalk = require('chalk')
+const util = require('util')
 
-var c = null;
+let c = null;
 
 function Log() {
-  c = c || new Console(process.stdout, process.stderr);
-  var args = Array.prototype.slice.call(arguments);
-  var prefix = '';
+  c = c || new Console(process.stdout, process.stderr)
+  let args = Array.prototype.slice.call(arguments)
+  let prefix = ''
 
-  c.isDebug = false;
+  c.isDebug = false
 
   c.format = function(args, color) {
-    args = Array.apply(null, args);
-    prefix && args.unshift(prefix.slice(0, -1));
+    args = Array.apply(null, args)
+    prefix && args.unshift(prefix.slice(0, -1))
 
     args = args.map(function(arg) {
       if (typeof arg === 'string') {
         // Handle prefix.
-        arg = arg.replace(/\n/g, `\n${prefix}`);
+        arg = arg.replace(/\n/g, `\n${prefix}`)
 
         // Handle color.
-        arg = color ? color(arg) : arg;
+        arg = color ? color(arg) : arg
       }
 
-      return arg;
-    });
+      return arg
+    })
 
-    return args;
-  };
+    return args
+  }
 
   c.debug = function() {
     if (this.isDebug) {
-      this.log.apply(this, this.format(arguments, chalk.gray));
+      this.log.apply(this, this.format(arguments, chalk.gray))
   	}
-  };
+  }
 
   c.error = function() {
-    this.log.apply(this, this.format(arguments, chalk.red));
+    this.log.apply(this, this.format(arguments, chalk.red))
   };
 
   c.info = function() {
-    this.log.apply(this, this.format(arguments));
+    this.log.apply(this, this.format(arguments))
   };
 
   c.group = function() {
-    prefix += '  ';
+    prefix += '  '
   };
 
   c.groupEnd = function() {
-    prefix = prefix.slice(0, -2);
+    prefix = prefix.slice(0, -2)
   };
 
-  return c;
+  return c
 }
 
-module.exports = new Log();
+module.exports = new Log()
