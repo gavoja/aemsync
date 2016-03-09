@@ -1,6 +1,6 @@
 {
   "name": "aemsync",
-  "version": "1.0.0",
+  "version": "1.0.0-beta.1",
   "description": "Adobe AEM Synchronization Tool",
   "author": "Michal Kochel <gavoja@gmail.com>",
   "keywords": [
@@ -19,6 +19,7 @@
   },
   "main": "index.js",
   "dependencies": {
+    "anymatch": "^1.3.0",
     "archiver": "~0.12.0",
     "chalk": "^1.1.1",
     "chokidar": "~1.0.3",

@@ -8,38 +8,38 @@ const log = require('./log.js')
 
 /** Pushes changes to AEM. */
 class Pusher {
-  constructor(targets, interval) {
-    this.lock = 0;
+  constructor (targets, interval, onPushEnd) {
+    this.lock = 0
     this.queue = []
     this.targets = targets
     this.interval = interval || 300
     this.handlers = [new ContentHandler()]
-
     this.sender = new Sender(targets)
+    this.onPushEnd = onPushEnd || function () {}
   }
 
-  start() {
+  start () {
     setInterval(() => {
       this.processQueue()
     }, this.interval)
   }
 
-  addItem(localPath) {
+  addItem (localPath) {
     this.queue.push(localPath)
   }
 
   /** Processes queue. */
-	processQueue() {
-		// Wait for the previous package to install.
-		// Otherwise an error may occur if two concurrent packages try to make
-		// changes to the same node.
-		if (this.lock > 0) {
-			return;
-		}
+  processQueue () {
+    // Wait for the previous package to install.
+    // Otherwise an error may occur if two concurrent packages try to make
+    // changes to the same node.
+    if (this.lock > 0) {
+      return
+    }
 
     // Get unique list of local paths.
-    let dict = {};
-    while(this.queue.length > 0) {
+    let dict = {}
+    while (this.queue.length > 0) {
       dict[this.queue.pop()] = true
     }
     let localPaths = Object.keys(dict)
@@ -69,21 +69,23 @@ class Pusher {
     this.lock = this.targets.length
     pack.save((packagePath) => {
       this.onSend(packagePath)
-    });
-	}
+    })
+  }
 
-  onSend(packagePath) {
+  onSend (packagePath) {
     this.sender.send(packagePath, (err, host, delta, time) => {
-      if (err) {
-        log.info(`Deploying to [${chalk.yellow(host)}]: ${chalk.red(err)}`)
-      } else {
-        log.info(`Deploying to [${chalk.yellow(host)}]:`, chalk.green('OK'))
-      }
-      log.info(`Completed in ${delta} ms at ${time}`)
+      let prefix = `Deploying to [${chalk.yellow(host)}] in ${delta} ms at ${time}`
 
+      if (err) {
+        log.info(`${prefix}: ${chalk.red(err)}`)
+      } else {
+        log.info(`${prefix}: ${chalk.green('OK')}`)
+      }
+
+      this.onPushEnd(err, host)
       log.groupEnd()
       this.lock -= 1
-    });
+    })
   }
 }
 

@@ -28,7 +28,7 @@ aemsync -t targets -w path_to_watch
 -t: Comma separated list of target hosts; default is http://admin:admin@localhost:4502.
 -w: Folder to watch; default is current.
 -i: Update interval; default is 300ms.
--f: Anymatch filter; any file matching the pattern will be skipped.
+-e: Anymatch exclude filter; any file matching the pattern will be skipped.
 -d: Enable debug mode.
 ```
 
@@ -38,26 +38,31 @@ aemsync -t http://admin:admin@localhost:4502,http://admin:admin@localhost:4503 -
 
 JavaScript
 ```JavaScript
-const aemsync = require('aemsync');
+const aemsync = require('aemsync')
 
-var sync = new aemsync.Sync();               // Synchronisation object.
-var workingDir = "~/workspace/my_project"~;
-var targets = [
+let workingDir = "~/workspace/my_project"
+let targets = [
   "http://admin:admin@localhost:4502",
-  "http://admin:admin@localhost:4503"];
-var userFilter = "*.orig";                   // Skip merge files.
-var syncerInterval = 300;
+  "http://admin:admin@localhost:4503"
+]
+let userFilter = "*.orig" // Skip merge files.
+let syncerInterval = 300
 
-new aemsync.Watcher(workingDir, userFilter, sync, function() {
-  new aemsync.Pusher(targets, syncerInterval, sync);
-});
+new aemsync.Watcher(workingDir, userFilter, () => {
+  new aemsync.Pusher(targets, syncerInterval, (err, host) => {
+    if (err) {
+      return console.log(`Error when pushing package to ${host}.`, err)
+    }
+    console.log(`Package pushed to ${host}.`)
+  })
+})
 ```
 
 ### Description
 
-When run, the Watcher scans for `jcr_root/*` folders within the `path_to_watch` (dot-prefixed and "target" folders are omitted). This may take a while depending on the size. After the scan is done, file system changes inside those folders are detected and deployed to AEM instance(s) as a package.
+The Watcher uses Node's `fs.watch()` function to watch over directory changes recursively. For Windows and OSX the `recursive` option is used, which significantly improves the performance. Any changes inside `jcr_root/*` folders are detected and deployed to AEM instance(s) as a package.
 
-Update interval is the time the Pusher waits for file changes changes before the package is created. In case of multiple file changes (e.g. switching between code branches), creating a new package per file should be avoided and instead, all changes should be pushed in one go. Lowering the value decreases the delay for a single file change but may increase the delay for multiple file changes. If you are unsure, please leave the default value.
+Update interval is the time the Pusher waits for file changes before the package is created. In case of multiple file changes (e.g. switching between code branches), creating a new package per file should be avoided and instead, all changes should be pushed in one go. Lowering the value decreases the delay for a single file change but may increase the delay for multiple file changes. If you are unsure, please leave the default value.
 
 ### Known issues
 

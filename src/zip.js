@@ -8,92 +8,90 @@ const log = require('./log.js')
 const DEFAULT_ZIP_NAME = 'aemsync.zip'
 
 class Zip {
-	constructor(zipPath) {
-		// TODO:  path.join(os.tmpdir(), DEFAULT_ZIP_NAME);
-		this.path = path.join(__dirname, '..', DEFAULT_ZIP_NAME)
-		this.zip = archiver('zip')
+  constructor (zipPath) {
+    // TODO:  path.join(os.tmpdir(), DEFAULT_ZIP_NAME)
+    this.path = path.join(__dirname, '..', DEFAULT_ZIP_NAME)
+    this.zip = archiver('zip')
 
-		log.debug('Creating archive:', this.path)
-		this.output = fs.createWriteStream(this.path)
-		this.zip.pipe(this.output)
-	}
+    log.debug('Creating archive:', this.path)
+    this.output = fs.createWriteStream(this.path)
+    this.zip.pipe(this.output)
+  }
 
-	addLocalFile(localPath, zipPath) {
-		// Normalize slashes.
-		zipPath = zipPath.replace(/\\/g, '/')
+  addLocalFile (localPath, zipPath) {
+    // Normalize slashes.
+    zipPath = zipPath.replace(/\\/g, '/')
 
-		// Only files can be zipped.
-		if (!fs.statSync(localPath).isFile()) {
+    // Only files can be zipped.
+    if (!fs.statSync(localPath).isFile()) {
       return
     }
 
+    log.debug('Zipping:', zipPath)
+    this.zip.append(fs.createReadStream(localPath), {
+      name: zipPath
+    })
+  }
 
-		log.debug('Zipping:', zipPath);
-		this.zip.append(fs.createReadStream(localPath), {
-			name: zipPath
-		});
-	}
+  addLocalDirectory (localPath, zipPath, callback) {
+    if (!fs.statSync(localPath).isDirectory()) {
+      return
+    }
 
-	addLocalDirectory(localPath, zipPath, callback) {
-		if (!fs.statSync(localPath).isDirectory()) {
-			return
-		}
+    // Ensure slash.
+    zipPath = zipPath.endsWith('/') ? zipPath : `${zipPath}/`
 
-		// Ensure slash.
-		zipPath = zipPath.endsWith('/') ? zipPath : `${zipPath}/`
+    let items = this.walkSync(localPath)
+    for (let i = 0; i < items.length; ++i) {
+      let subLocalPath = items[i]
+      let subZipPath = zipPath + subLocalPath.substr(localPath.length + 1)
+      this.addLocalFile(subLocalPath, subZipPath)
+      callback && callback(subLocalPath, subZipPath)
+    }
+  }
 
-		let items = this.walkSync(localPath)
-		for (let i = 0; i < items.length; ++i) {
-			let subLocalPath = items[i]
-			let subZipPath = zipPath + subLocalPath.substr(localPath.length + 1)
-			 this.addLocalFile(subLocalPath, subZipPath)
-			 callback && callback(subLocalPath, subZipPath)
-		}
-	}
+  addFile (content, zipPath) {
+    log.debug('Zipping:', zipPath)
+    this.zip.append(content, {
+      name: zipPath
+    })
+  }
 
-	addFile(content, zipPath) {
-		log.debug('Zipping:', zipPath)
-		this.zip.append(content, {
-			name: zipPath
-		});
-	}
+  /** Recursively walks over directory. */
+  walkSync (localPath) {
+    localPath = path.resolve(localPath)
 
-	/** Recursively walks over directory. */
-	walkSync(localPath) {
-		localPath = path.resolve(localPath)
+    let results = []
+    let stats = fs.statSync(localPath)
 
-		let results = []
-		let stats = fs.statSync(localPath)
+    // Add current item.
+    results.push(localPath)
 
-		// Add current item.
-		results.push(localPath)
+    // No need for recursion if not a directory.
+    if (!stats.isDirectory()) {
+      return results
+    }
 
-		// No need for recursion if not a directory.
-		if (!stats.isDirectory()) {
-			return results
-		}
+    // Iterate over list of children.
+    let children = fs.readdirSync(localPath)
 
-		// Iterate over list of children.
-	  let that = this
-		let children = fs.readdirSync(localPath)
+    for (let i = 0; i < children.length; ++i) {
+      let child = path.resolve(localPath, children[i])
+      results = results.concat(this.walkSync(child))
+    }
 
-	  for (let i = 0; i < children.length; ++i) {
-	    let child = path.resolve(localPath, children[i])
-	    results = results.concat(this.walkSync(child))
-	  }
+    return results
+  }
 
-		return results
-	}
+  save (callback) {
+    let that = this
 
-	save(callback) {
-		let that = this
+    this.output.on('close', () => {
+      callback(that.path)
+    })
 
-		this.output.on('close', () => {
-			callback(that.path)
-		});
-
-		this.zip.finalize() // Trigers the above.
-	}
+    this.zip.finalize() // Trigers the above.
+  }
 }
 
 module.exports.Zip = Zip

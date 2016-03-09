@@ -3,3 +3,5 @@
 class BundleHandler {
   // TODO: Implement.
 }
+
+module.exports.BundleHandler = BundleHandler

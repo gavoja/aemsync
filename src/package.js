@@ -10,7 +10,7 @@ const DATA_PATH = path.resolve(__dirname, '..', 'data')
 const PACKAGE_CONTENT_PATH = path.join(DATA_PATH, 'package_content')
 const NT_FOLDER_PATH = path.join(DATA_PATH, 'nt_folder', '.content.xml')
 
-const FILTER_ZIP_PATH = "META-INF/vault/filter.xml"
+const FILTER_ZIP_PATH = 'META-INF/vault/filter.xml'
 const FILTER_WRAPPER = `<?xml version="1.0" encoding="UTF-8"?>
 <workspaceFilter version="1.0">%s
 </workspaceFilter>`
@@ -23,18 +23,17 @@ const FILTER_CHILDREN = `
     <include pattern="%s/.*" />
   </filter>`
 
-
 class Package {
-  constructor() {
+  constructor () {
     this.items = []
     this.path = []
   }
 
-  update(localPath, zipPath, action) {
+  update (localPath, zipPath, action) {
     // Check if item or its parent is already in the package.
     for (let i = 0; i < this.items.length; ++i) {
       if (localPath.indexOf(this.items[i].localPath) === 0) {
-        return;
+        return
       }
     }
 
@@ -44,12 +43,12 @@ class Package {
       localPath: localPath,
       zipPath: zipPath !== null ? zipPath : this.getZipPath(localPath),
       filterPath: this.getFilterPath(zipPath)
-    });
+    })
   }
 
-  save(callback) {
-    if (this.items.length == 0) {
-        callback(null)
+  save (callback) {
+    if (this.items.length === 0) {
+      callback(null)
     }
 
     // Create archive and add default package content.
@@ -70,7 +69,7 @@ class Package {
       if (item.action === 'ADD') {
         let dirName = path.dirname(item.filterPath)
         filters += util.format(FILTER_CHILDREN, dirName, dirName,
-        				               item.filterPath, item.filterPath)
+          item.filterPath, item.filterPath)
       } else {
         filters += util.format(FILTER, item.filterPath)
       }
@@ -91,7 +90,7 @@ class Package {
       if (stat.isDirectory()) {
         let cb = (localPath, zipPath) => {
           that.onItemAdd(archive, localPath, zipPath)
-        };
+        }
 
         archive.addLocalDirectory(item.localPath, item.zipPath, cb)
       }
@@ -99,13 +98,13 @@ class Package {
 
     // Wrap filters
     filters = util.format(FILTER_WRAPPER, filters)
-		archive.addFile(new Buffer(filters), FILTER_ZIP_PATH)
+    archive.addFile(new Buffer(filters), FILTER_ZIP_PATH)
     log.debug(filters)
     archive.save(callback)
   }
 
   /** Additional handling of directories added recursively. */
-  onItemAdd(archive, localPath, zipPath) {
+  onItemAdd (archive, localPath, zipPath) {
     if (!fs.lstatSync(localPath).isDirectory()) {
       return
     }
@@ -123,20 +122,20 @@ class Package {
   }
 
   /** Replaces backslashes with slashes. */
-  cleanPath(localPath) {
-  	return path.resolve(localPath).replace(/\\/g, '/')
+  cleanPath (localPath) {
+    return path.resolve(localPath).replace(/\\/g, '/')
   }
 
   /** Gets a zip path from a local path. */
-  getZipPath(localPath) {
-  	return this.cleanPath(localPath).replace(/.*\/(jcr_root\/.*)/, '$1')
+  getZipPath (localPath) {
+    return this.cleanPath(localPath).replace(/.*\/(jcr_root\/.*)/, '$1')
   }
 
   /** Gets a filter path from a local path. */
-  getFilterPath(localPath) {
-  	return this.cleanPath(localPath)
-  		.replace(/(.*jcr_root)|(\.xml$)|(\.dir)/g, '')
-  		.replace(/\/_([^\/]*)_([^\/]*)$/g, '\/$1:$2')
+  getFilterPath (localPath) {
+    return this.cleanPath(localPath)
+      .replace(/(.*jcr_root)|(\.xml$)|(\.dir)/g, '')
+      .replace(/\/_([^\/]*)_([^\/]*)$/g, '\/$1:$2')
   }
 }
 
