@@ -45,11 +45,11 @@ let targets = [
   "http://admin:admin@localhost:4502",
   "http://admin:admin@localhost:4503"
 ]
-let userFilter = "*.orig" // Skip merge files.
-let syncerInterval = 300
+let exclude = "**/*.orig" // Skip merge files.
+let pushInterval = 300
 
-new aemsync.Watcher(workingDir, userFilter, () => {
-  new aemsync.Pusher(targets, syncerInterval, (err, host) => {
+new aemsync.Watcher(workingDir, exclude, () => {
+  new aemsync.Pusher(targets, pushInterval, (err, host) => {
     if (err) {
       return console.log(`Error when pushing package to ${host}.`, err)
     }
