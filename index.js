@@ -62,5 +62,8 @@ if (require.main === module) {
   main()
 }
 
-module.exports.Watcher = Watcher
-module.exports.Pusher = Pusher
+module.exports = {
+  main: main,
+  Watcher: Watcher,
+  Pusher: Pusher
+}
