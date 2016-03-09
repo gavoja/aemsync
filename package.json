@@ -1,6 +1,6 @@
 {
   "name": "aemsync",
-  "version": "1.0.0-beta.1",
+  "version": "1.0.0-beta.2",
   "description": "Adobe AEM Synchronization Tool",
   "author": "Michal Kochel <gavoja@gmail.com>",
   "keywords": [
@@ -20,16 +20,14 @@
   "main": "index.js",
   "dependencies": {
     "anymatch": "^1.3.0",
-    "archiver": "~0.12.0",
+    "archiver": "^0.21.0",
     "chalk": "^1.1.1",
-    "chokidar": "~1.0.3",
-    "colors": "~1.0.3",
-    "form-data": "~0.1.4",
-    "graceful-fs": "~3.0.4",
-    "minimist": "~0.2.0"
+    "form-data": "^0.2.0",
+    "graceful-fs": "^4.1.3",
+    "minimist": "^1.2.0"
   },
   "bin": {
     "aemsync": "./bin/aemsync"
   },
-  "license": "WTFPL 2"
+  "license": "MIT"
 }
