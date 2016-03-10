@@ -1,3 +1,5 @@
+'use strict'
+
 const minimist = require('minimist')
 const path = require('path')
 const fs = require('graceful-fs')
@@ -19,7 +21,7 @@ Options:
 Website: https://github.com/gavoja/aemsync`
 
 function main () {
-  var args = minimist(process.argv.slice(2))
+  let args = minimist(process.argv.slice(2))
 
   // Show help.
   if (args.h) {
@@ -29,16 +31,16 @@ function main () {
 
   // Get other args.
   log.isDebug = args.d
-  var workingDir = path.resolve(args.w ? args.w : '.')
+  let workingDir = path.resolve(args.w ? args.w : '.')
 
   if (!fs.existsSync(workingDir)) {
     log.info('Invalid path:', chalk.yellow(workingDir))
     return
   }
 
-  var targets = args.t ? args.t : 'http://admin:admin@localhost:4502'
-  var pushInterval = args.i ? args.i : 300
-  var exclude = args.e ? args.e : ''
+  let targets = args.t ? args.t : 'http://admin:admin@localhost:4502'
+  let pushInterval = args.i ? args.i : 300
+  let exclude = args.e ? args.e : ''
 
   log.info(`
     Working dir: ${chalk.yellow(workingDir)}
@@ -47,10 +49,8 @@ function main () {
         Exclude: ${chalk.yellow(exclude)}
   `)
 
-  log.info('Awaiting changes...')
-
-  var pusher = new Pusher(targets.split(','), pushInterval)
-  var watcher = new Watcher()
+  let pusher = new Pusher(targets.split(','), pushInterval)
+  let watcher = new Watcher()
 
   pusher.start()
   watcher.watch(workingDir, exclude, (localPath) => {

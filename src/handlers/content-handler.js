@@ -13,6 +13,8 @@ class ContentHandler {
   process (items, localPath) {
     let cleanPath = localPath.replace(/\\/g, '/')
 
+    // TODO: Simplify path checking.
+
     // Ignore dot-prefixed files and directories except ".content.xml".
     if (cleanPath.match(RE_DOT) && !cleanPath.endsWith('.content.xml')) {
       return
