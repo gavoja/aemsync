@@ -34,6 +34,10 @@ class Watcher {
 
       fs.stat(localPath, (err, stats) => {
         if (err) {
+          // If file does not exist - process deletion.
+          if (err.code === 'ENOENT') {
+            callback(localPath)
+          }
           return
         }
 

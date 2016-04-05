@@ -12,7 +12,6 @@ const RE_TARGET_PATH = /^.*\/target\/(.*\/)?jcr_root\/.*$/
 class ContentHandler {
   process (items, localPath) {
     let cleanPath = localPath.replace(/\\/g, '/')
-
     // TODO: Simplify path checking.
 
     // Ignore dot-prefixed files and directories except ".content.xml".

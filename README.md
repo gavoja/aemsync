@@ -40,12 +40,12 @@ JavaScript
 ```JavaScript
 const aemsync = require('aemsync')
 
-let workingDir = "~/workspace/my_project"
+let workingDir = '~/workspace/my_project'
 let targets = [
-  "http://admin:admin@localhost:4502",
-  "http://admin:admin@localhost:4503"
+  'http://admin:admin@localhost:4502',
+  'http://admin:admin@localhost:4503'
 ]
-let exclude = "**/*.orig" // Skip merge files.
+let exclude = '**/*.orig' // Skip merge files.
 let pushInterval = 300
 
 new aemsync.Watcher(workingDir, exclude, () => {
