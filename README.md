@@ -38,8 +38,10 @@ aemsync -t http://admin:admin@localhost:4502,http://admin:admin@localhost:4503 -
 
 JavaScript
 ```JavaScript
+// Import aemsync.
 const aemsync = require('aemsync')
 
+// Set up the environment.
 let workingDir = '~/workspace/my_project'
 let targets = [
   'http://admin:admin@localhost:4502',
@@ -47,14 +49,24 @@ let targets = [
 ]
 let exclude = '**/*.orig' // Skip merge files.
 let pushInterval = 300
+let onPushEnd = (err, host) => {
+  if (err) {
+    return console.log(`Error when pushing package to ${host}.`, err)
+  }
+  console.log(`Package pushed to ${host}.`)  
+};
 
-new aemsync.Watcher(workingDir, exclude, () => {
-  new aemsync.Pusher(targets, pushInterval, (err, host) => {
-    if (err) {
-      return console.log(`Error when pushing package to ${host}.`, err)
-    }
-    console.log(`Package pushed to ${host}.`)
-  })
+// Create Pusher and Watcher.
+let pusher = new Pusher(targets, pushInterval, onPushEnd)
+let watcher = new Watcher()
+
+// Initialize queue processing.
+pusher.start()
+
+// Watch over workingDir.
+watcher.watch(workingDir, exclude, (localPath) => {
+  // Add item to Pusher's queue when a change is detected.
+  pusher.addItem(localPath)
 })
 ```
 
