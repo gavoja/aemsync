@@ -54,7 +54,7 @@ let onPushEnd = (err, host) => {
     return console.log(`Error when pushing package to ${host}.`, err)
   }
   console.log(`Package pushed to ${host}.`)  
-};
+}
 
 // Create Pusher and Watcher.
 let pusher = new Pusher(targets, pushInterval, onPushEnd)
