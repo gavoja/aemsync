@@ -30,6 +30,12 @@ class Watcher {
       }
 
       let localPath = path.join(workingDir, fileName)
+
+      // Skip excluded.
+      if (exclude && anymatch(exclude, localPath)) {
+        return
+      }
+
       log.debug('Changed:', localPath)
 
       fs.stat(localPath, (err, stats) => {
@@ -38,11 +44,6 @@ class Watcher {
           if (err.code === 'ENOENT') {
             callback(localPath)
           }
-          return
-        }
-
-        // Skip directory changes.
-        if (event === 'change' && stats && stats.isDirectory()) {
           return
         }
 
