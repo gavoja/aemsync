@@ -66,7 +66,7 @@ pusher.start()
 // Watch over workingDir.
 watcher.watch(workingDir, exclude, (localPath) => {
   // Add item to Pusher's queue when a change is detected.
-  pusher.addItem(localPath)
+  pusher.enqueue(localPath)
 })
 ```
 
