@@ -54,7 +54,7 @@ function main () {
 
   pusher.start()
   watcher.watch(workingDir, exclude, (localPath) => {
-    pusher.addItem(localPath)
+    pusher.enqueue(localPath)
   })
 }
 

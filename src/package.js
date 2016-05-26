@@ -10,6 +10,8 @@ const DATA_PATH = path.resolve(__dirname, '..', 'data')
 const PACKAGE_CONTENT_PATH = path.join(DATA_PATH, 'package_content')
 const NT_FOLDER_PATH = path.join(DATA_PATH, 'nt_folder', '.content.xml')
 
+// const RE_ZIP_PATH = /^.*[\/\\](jcr_root[\/\\].*)$/
+
 const FILTER_ZIP_PATH = 'META-INF/vault/filter.xml'
 const FILTER_WRAPPER = `<?xml version="1.0" encoding="UTF-8"?>
 <workspaceFilter version="1.0">%s
@@ -29,21 +31,28 @@ class Package {
     this.path = []
   }
 
-  update (localPath, zipPath, action) {
-    // Check if item or its parent is already in the package.
-    for (let i = 0; i < this.items.length; ++i) {
-      if (localPath.indexOf(this.items[i].localPath) === 0) {
+  update (item) {
+    for (let i = this.items.length - 1; i >= 0; --i) {
+      let existingItem = this.items[i]
+
+      // Skip if item or parent already added.
+      if (item.localPath.startsWith(existingItem.localPath)) {
+        log.debug(`Already added to package, skipping: ${item.localPath}`)
         return
+      }
+
+      // Remove child if this one is parent.
+      if (existingItem.localPath.startsWith(item.localPath)) {
+        log.debug(`Removing child: ${item.localPath}`)
+        this.items.splice(i, 1)
       }
     }
 
-    // Add item.
-    this.items.push({
-      action: action,
-      localPath: localPath,
-      zipPath: zipPath !== null ? zipPath : this.getZipPath(localPath),
-      filterPath: this.getFilterPath(zipPath)
-    })
+    item.zipPath = this.getZipPath(item.localPath)
+    item.filterPath = this.getFilterPath(item.zipPath)
+    this.items.push(item)
+
+    return item
   }
 
   save (callback) {
@@ -58,43 +67,31 @@ class Package {
     archive.addLocalDirectory(jcrRoot, 'jcr_root')
     archive.addLocalDirectory(metaInf, 'META-INF')
 
-    let filters = ''
-    let that = this
-
     // Iterate over all items
-    for (let i = 0; i < this.items.length; ++i) {
-      let item = this.items[i]
-
-      // Update filters.
-      if (item.action === 'ADD') {
-        let dirName = path.dirname(item.filterPath)
-        filters += util.format(FILTER_CHILDREN, dirName, dirName,
-          item.filterPath, item.filterPath)
-      } else {
+    let filters = ''
+    this.items.forEach((item) => {
+      // Update filters (delete).
+      if (!item.exists) {
         filters += util.format(FILTER, item.filterPath)
+        return
       }
 
-      // Check if item exists.
-      if (!fs.existsSync(item.localPath)) {
-        break
-      }
-
-      let stat = fs.statSync(item.localPath)
-
-      // Add file to archive.
-      if (stat.isFile()) {
-        archive.addLocalFile(item.localPath, item.zipPath)
-      }
+      // Update filters (add).
+      let dirName = path.dirname(item.filterPath)
+      filters += util.format(FILTER_CHILDREN, dirName, dirName,
+        item.filterPath, item.filterPath)
 
       // Add directory to archive.
-      if (stat.isDirectory()) {
+      if (item.isDirectory) {
         let cb = (localPath, zipPath) => {
-          that.onItemAdd(archive, localPath, zipPath)
+          this.addNtFolder(archive, localPath, zipPath)
         }
-
         archive.addLocalDirectory(item.localPath, item.zipPath, cb)
+      // Add file to archive
+      } else {
+        archive.addLocalFile(item.localPath, item.zipPath)
       }
-    }
+    })
 
     // Wrap filters
     filters = util.format(FILTER_WRAPPER, filters)
@@ -104,11 +101,7 @@ class Package {
   }
 
   /** Additional handling of directories added recursively. */
-  onItemAdd (archive, localPath, zipPath) {
-    if (!fs.lstatSync(localPath).isDirectory()) {
-      return
-    }
-
+  addNtFolder (archive, localPath, zipPath) {
     // Add nt:folder if needed.
     let contentXml = path.join(localPath, '.content.xml')
     let hasContentXml = fs.existsSync(contentXml)

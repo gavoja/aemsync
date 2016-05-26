@@ -5,6 +5,7 @@ const ContentHandler = require('./handlers/content-handler.js').ContentHandler
 const Package = require('./package.js').Package
 const Sender = require('./sender.js').Sender
 const log = require('./log.js')
+const fs = require('graceful-fs')
 
 /** Pushes changes to AEM. */
 class Pusher {
@@ -24,8 +25,24 @@ class Pusher {
     }, this.interval)
   }
 
-  addItem (localPath) {
+  enqueue (localPath) {
     this.queue.push(localPath)
+  }
+
+  /** Gets item with metadata from local path. */
+  getItem (localPath) {
+    let item = {
+      localPath: localPath
+    }
+    try {
+      let stat = fs.statSync(localPath)
+      item.exists = true
+      item.isDirectory = stat.isDirectory()
+    } catch (err) {
+      item.exists = false
+    }
+
+    return item
   }
 
   /** Processes queue. */
@@ -42,37 +59,41 @@ class Pusher {
     while (this.queue.length > 0) {
       dict[this.queue.pop()] = true
     }
-    let localPaths = Object.keys(dict)
 
-    // Process local paths with all the handlers.
+    // Get all the items.
     let items = []
-    for (let i = 0; i < this.handlers.length; ++i) {
-      for (let j = 0; j < localPaths.length; ++j) {
-        this.handlers[i].process(items, localPaths[j])
-      }
-    }
+    Object.keys(dict).forEach((localPath) => {
+      this.handlers.forEach((handler) => {
+        handler.process(items, this.getItem(localPath))
+      })
+    })
 
+    // Skip if no items to add to package.
     if (items.length === 0) {
       return
     }
 
     // Create package.
     let pack = new Package()
-    for (let i = 0; i < items.length; ++i) {
-      let item = items[i]
-      log.info(item.action, chalk.yellow(item.zipPath))
-      pack.update(item.localPath, item.zipPath, item.action)
-    }
+    items.forEach((item) => {
+      item = pack.update(item)
+      if (item) {
+        log.info(item.exists ? 'ADD' : 'DEL', chalk.yellow(item.zipPath))
+      }
+    })
 
     // Save the package.
     log.group()
     this.lock = this.targets.length
     pack.save((packagePath) => {
-      this.onSend(packagePath)
+      this.onSave(packagePath, () => {
+        log.groupEnd()
+        this.lock -= 1
+      })
     })
   }
 
-  onSend (packagePath) {
+  onSave (packagePath, callback) {
     this.sender.send(packagePath, (err, host, delta, time) => {
       let prefix = `Deploying to [${chalk.yellow(host)}] in ${delta} ms at ${time}`
 
@@ -83,8 +104,7 @@ class Pusher {
       }
 
       this.onPushEnd(err, host)
-      log.groupEnd()
-      this.lock -= 1
+      callback()
     })
   }
 }
