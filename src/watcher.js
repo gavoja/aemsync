@@ -18,7 +18,7 @@ class Watcher {
       }
 
       callback(localPath)
-    })
+    }, 0)
 
     log.info('Awaiting changes ...')
   }
