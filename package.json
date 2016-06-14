@@ -1,6 +1,6 @@
 {
   "name": "aemsync",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Adobe AEM Synchronization Tool",
   "author": "Michal Kochel <gavoja@gmail.com>",
   "keywords": [
@@ -25,7 +25,7 @@
     "form-data": "^0.2.0",
     "graceful-fs": "^4.1.3",
     "minimist": "^1.2.0",
-    "simple-watcher": "^1.0.0"
+    "simple-watcher": "^1.0.1"
   },
   "bin": {
     "aemsync": "./bin/aemsync"
