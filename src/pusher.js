@@ -5,7 +5,6 @@ const ContentHandler = require('./handlers/content-handler.js').ContentHandler
 const Package = require('./package.js').Package
 const Sender = require('./sender.js').Sender
 const log = require('./log.js')
-const fs = require('graceful-fs')
 
 /** Pushes changes to AEM. */
 class Pusher {
@@ -29,22 +28,6 @@ class Pusher {
     this.queue.push(localPath)
   }
 
-  /** Gets item with metadata from local path. */
-  getItem (localPath) {
-    let item = {
-      localPath: localPath
-    }
-    try {
-      let stat = fs.statSync(localPath)
-      item.exists = true
-      item.isDirectory = stat.isDirectory()
-    } catch (err) {
-      item.exists = false
-    }
-
-    return item
-  }
-
   /** Processes queue. */
   processQueue () {
     // Wait for the previous package to install.
@@ -61,36 +44,50 @@ class Pusher {
     }
 
     // Get all the items.
-    let items = []
-    Object.keys(dict).forEach((localPath) => {
-      this.handlers.forEach((handler) => {
-        handler.process(items, this.getItem(localPath))
+    let list = []
+    Object.keys(dict).forEach(localPath => {
+      this.handlers.forEach(handler => {
+        let processedPath = handler.process(localPath)
+        processedPath && list.push(processedPath)
       })
     })
 
     // Skip if no items to add to package ...
-    if (items.length === 0) {
+    if (list.length === 0) {
       return
     }
 
-    // ... otherwise, create package.
-    let pack = new Package()
-    items.forEach((item) => {
-      item = pack.addItem(item)
-      if (item) {
-        log.info(item.exists ? 'ADD' : 'DEL', chalk.yellow(item.zipPath))
+    // .. otherwise, process.
+    this.process(list, err => {
+      if (err) {
+        console.log(err)
+        this.queue = this.queue.concat(list)
       }
-    })
 
-    // Save the package.
-    log.group()
-    this.lock = this.targets.length
-    pack.save((packagePath) => {
-      this.onSave(packagePath, () => {
-        log.groupEnd()
-        this.lock -= 1
-      })
+      this.lock -= 1
     })
+  }
+
+  process (list, callback) {
+    try {
+      let pack = new Package()
+      list.forEach(localPath => {
+        let item = pack.add(localPath)
+        item && log.info(item.exists ? 'ADD' : 'DEL', chalk.yellow(item.zipPath))
+      })
+
+      // Save the package.
+      log.group()
+      this.lock = this.targets.length
+      pack.save(packagePath => {
+        this.onSave(packagePath, () => {
+          callback(null)
+          log.groupEnd()
+        })
+      })
+    } catch (err) {
+      callback(err)
+    }
   }
 
   onSave (packagePath, callback) {

@@ -8,35 +8,31 @@ const RE_SPECIAL = /^.*\/(_jcr_content|[^\/]+\.dir|\.content\.xml).*$/
 const RE_TARGET_PATH = /^.*\/target\/(.*\/)?jcr_root\/.*$/
 
 class ContentHandler {
-  process (items, item) {
-    let cleanPath = item.localPath.replace(/\\/g, '/')
+  process (localPath) {
+    let cleanPath = localPath.replace(/\\/g, '/')
     // TODO: Simplify path checking.
 
     // Ignore dot-prefixed files and directories except ".content.xml".
     if (cleanPath.match(RE_DOT) && !cleanPath.endsWith('.content.xml')) {
-      return
+      return null
     }
 
     // Process items only under 'jcr_root/*/'
     if (!cleanPath.match(RE_CONTENT_PATH)) {
-      return
+      return null
     }
 
     // Skip paths on 'target'
     if (cleanPath.match(RE_TARGET_PATH)) {
-      return
+      return null
     }
 
     // Use parent if item is 'special'.
     if (cleanPath.match(RE_SPECIAL)) {
-      return this.process(items, {
-        localPath: path.dirname(item.localPath),
-        exists: true,
-        isDirectory: true
-      })
+      return this.process(path.dirname(localPath))
     }
 
-    items.push(item)
+    return localPath
   }
 }
 

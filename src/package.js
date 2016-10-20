@@ -31,6 +31,28 @@ class Package {
     this.path = []
   }
 
+  /** Gets item with metadata from local path. */
+  getItem (localPath) {
+    let item = {
+      localPath: localPath
+    }
+
+    try {
+      let stat = fs.statSync(localPath)
+      item.exists = true
+      item.isDirectory = stat.isDirectory()
+    } catch (err) {
+      item.exists = false
+    }
+
+    return item
+  }
+
+  /** Adds local path to package. */
+  add (localPath) {
+    return this.addItem(this.getItem(localPath))
+  }
+
   /** Adds item to package. */
   addItem (item) {
     // Handle duplicates.
@@ -53,6 +75,7 @@ class Package {
     item.zipPath = item.zipPath || this.getZipPath(item.localPath)
     item.filterPath = item.filterPath || this.getFilterPath(item.zipPath)
     this.items.push(item)
+    console.log(`Added: ${item.localPath}`)
 
     this.handleContentXml(item)
 
@@ -71,25 +94,14 @@ class Package {
     while (this.cleanPath(dirPath).match(RE_CONTENT_PATH)) {
       let contentXmlPath = path.join(dirPath, CONTENT_XML)
       let contents = this.getFileContents(contentXmlPath)
-
       // Process parent if 'nt:unstructured' found.
       if (contents && contents.match(RE_UNSTRUCTURED)) {
-        return this.addItem({
-          exists: true,
-          isDirectory: true,
-          skipFilters: false,
-          localPath: dirPath
-        })
+        return this.addItem(this.getItem(dirPath))
       }
 
       // Process '.content.xml'.
       if (contents) {
-        this.addItem({
-          exists: true,
-          isDirectory: false,
-          skipFilters: true,
-          localPath: contentXmlPath
-        })
+        this.addItem(this.getItem(contentXmlPath))
       }
 
       dirPath = path.dirname(dirPath)
@@ -113,17 +125,15 @@ class Package {
     let filters = ''
     this.items.forEach((item) => {
       // Update filters (delete).
-      if (!item.skipFilters) {
-        if (!item.exists) {
-          filters += util.format(FILTER, item.filterPath)
-          return
-        }
-
-        // Update filters (add).
-        // When adding we need to account for all the sibbling '.content.xml' files.
-        let dirName = path.dirname(item.filterPath)
-        filters += util.format(FILTER_CHILDREN, dirName, dirName, item.filterPath, item.filterPath)
+      if (!item.exists) {
+        filters += util.format(FILTER, item.filterPath)
+        return
       }
+
+      // Update filters (add).
+      // When adding we need to account for all the sibbling '.content.xml' files.
+      let dirName = path.dirname(item.filterPath)
+      filters += util.format(FILTER_CHILDREN, dirName, dirName, item.filterPath, item.filterPath)
 
       // Add directory to archive.
       if (item.isDirectory) {
