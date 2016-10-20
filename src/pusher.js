@@ -68,15 +68,15 @@ class Pusher {
       })
     })
 
-    // Skip if no items to add to package.
+    // Skip if no items to add to package ...
     if (items.length === 0) {
       return
     }
 
-    // Create package.
+    // ... otherwise, create package.
     let pack = new Package()
     items.forEach((item) => {
-      item = pack.update(item)
+      item = pack.addItem(item)
       if (item) {
         log.info(item.exists ? 'ADD' : 'DEL', chalk.yellow(item.zipPath))
       }

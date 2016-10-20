@@ -19,12 +19,22 @@ class Zip {
     this.zip.pipe(this.output)
   }
 
+  isFile (localPath) {
+    let stat = fs.statSync(localPath)
+    return stat && stat.isFile()
+  }
+
+  isDirectory (localPath) {
+    let stat = fs.statSync(localPath)
+    return stat && stat.isDirectory()
+  }
+
   addLocalFile (localPath, zipPath) {
     // Normalize slashes.
     zipPath = zipPath.replace(/\\/g, '/')
 
     // Only files can be zipped.
-    if (!fs.statSync(localPath).isFile()) {
+    if (!this.isFile(localPath)) {
       return
     }
 
@@ -35,7 +45,7 @@ class Zip {
   }
 
   addLocalDirectory (localPath, zipPath, callback) {
-    if (!fs.statSync(localPath).isDirectory()) {
+    if (!this.isDirectory(localPath)) {
       return
     }
 
@@ -63,13 +73,12 @@ class Zip {
     localPath = path.resolve(localPath)
 
     let results = []
-    let stats = fs.statSync(localPath)
 
     // Add current item.
     results.push(localPath)
 
     // No need for recursion if not a directory.
-    if (!stats.isDirectory()) {
+    if (!this.isDirectory(localPath)) {
       return results
     }
 
