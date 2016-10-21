@@ -62,7 +62,7 @@ class Sender {
     res.on('data', function (chunk) {
       // Get message and remove new line.
       let textChunk = decoder.write(chunk)
-      textChunk = textChunk.substring(0, textChunk.length - 1)
+      textChunk = textChunk.replace(/\r/g, '').substring(0, textChunk.length - 1)
       output.push(textChunk)
 
       // Parse message.
@@ -73,18 +73,23 @@ class Sender {
 
       let code = match[1]
       let msg = match[2]
+      let err = code === '200' ? '' : msg
 
-      output = output.join('\n').replace(/\r/g, '')
       log.group()
-      log.debug(output)
+      output.forEach(line => {
+        log.debug(line)
+        if (line.startsWith('E ')) {
+          err += `\n${line.substr(2)}`
+        }
+      })
       log.groupEnd()
 
       let delta = Date.now() - timestamp
       let time = new Date().toISOString()
-      let err = code === '200' ? null : msg
+
       callback(err, host, delta, time)
     })
   }
 }
 
-module.exports.Sender = Sender
+module.exports = Sender

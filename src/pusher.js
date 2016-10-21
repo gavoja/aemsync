@@ -1,9 +1,9 @@
 'use strict'
 
 const chalk = require('chalk')
-const ContentHandler = require('./handlers/content-handler.js').ContentHandler
-const Package = require('./package.js').Package
-const Sender = require('./sender.js').Sender
+const ContentHandler = require('./handlers/content-handler.js')
+const Package = require('./package.js')
+const Sender = require('./sender.js')
 const log = require('./log.js')
 
 /** Pushes changes to AEM. */
@@ -60,16 +60,26 @@ class Pusher {
     // .. otherwise, process.
     this.process(list, err => {
       if (err) {
-        console.log(err)
+        // Restore the queue if anything goes wrong.
+        // It will be processed in the next tick.
         this.queue = this.queue.concat(list)
       }
-
-      this.lock -= 1
     })
   }
 
   process (list, callback) {
+    // Finalization function.
+    let finalize = (err) => {
+      this.lock = err ? 0 : this.lock - 1
+      if (this.lock === 0) {
+        callback(err)
+        log.groupEnd()
+      }
+    }
+
+
     try {
+      // Add all paths to the package.
       let pack = new Package()
       list.forEach(localPath => {
         let item = pack.add(localPath)
@@ -80,30 +90,19 @@ class Pusher {
       log.group()
       this.lock = this.targets.length
       pack.save(packagePath => {
-        this.onSave(packagePath, () => {
-          callback(null)
-          log.groupEnd()
+        // Send the saved package.
+        this.sender.send(packagePath, (err, host, delta, time) => {
+          let prefix = `Deploying to [${chalk.yellow(host)}] in ${delta} ms at ${time}`
+          err ? log.info(`${prefix}: ${chalk.red(err)}`) : log.info(`${prefix}: ${chalk.green('OK')}`)
+          this.onPushEnd(err, host)
+          finalize()
         })
       })
     } catch (err) {
-      callback(err)
+      log.error(err)
+      finalize(err)
     }
-  }
-
-  onSave (packagePath, callback) {
-    this.sender.send(packagePath, (err, host, delta, time) => {
-      let prefix = `Deploying to [${chalk.yellow(host)}] in ${delta} ms at ${time}`
-
-      if (err) {
-        log.info(`${prefix}: ${chalk.red(err)}`)
-      } else {
-        log.info(`${prefix}: ${chalk.green('OK')}`)
-      }
-
-      this.onPushEnd(err, host)
-      callback()
-    })
   }
 }
 
-module.exports.Pusher = Pusher
+module.exports = Pusher

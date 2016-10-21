@@ -24,4 +24,4 @@ class Watcher {
   }
 }
 
-module.exports.Watcher = Watcher
+module.exports = Watcher

@@ -36,4 +36,4 @@ class ContentHandler {
   }
 }
 
-module.exports.ContentHandler = ContentHandler
+module.exports = ContentHandler

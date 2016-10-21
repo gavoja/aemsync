@@ -104,4 +104,4 @@ class Zip {
   }
 }
 
-module.exports.Zip = Zip
+module.exports = Zip

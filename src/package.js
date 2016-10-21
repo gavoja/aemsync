@@ -4,7 +4,7 @@ const path = require('path')
 const util = require('util')
 const fs = require('graceful-fs')
 const log = require('./log.js')
-const Zip = require('./zip.js').Zip
+const Zip = require('./zip.js')
 
 const CONTENT_XML = '.content.xml'
 const DATA_PATH = path.resolve(__dirname, '..', 'data')
@@ -75,7 +75,6 @@ class Package {
     item.zipPath = item.zipPath || this.getZipPath(item.localPath)
     item.filterPath = item.filterPath || this.getFilterPath(item.zipPath)
     this.items.push(item)
-    console.log(`Added: ${item.localPath}`)
 
     this.handleContentXml(item)
 
@@ -199,4 +198,4 @@ class Package {
   }
 }
 
-module.exports.Package = Package
+module.exports = Package

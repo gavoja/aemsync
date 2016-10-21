@@ -5,8 +5,8 @@ const path = require('path')
 const fs = require('graceful-fs')
 const log = require('./src/log.js')
 const chalk = require('chalk')
-const Watcher = require('./src/watcher.js').Watcher
-const Pusher = require('./src/pusher.js').Pusher
+const Watcher = require('./src/watcher.js')
+const Pusher = require('./src/pusher.js')
 
 const MSG_HELP = `Usage: aemsync [OPTIONS]
 
