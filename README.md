@@ -62,7 +62,7 @@ aemsync({workingDir, targets, exclude, pushInterval, onPushEnd})
 
 The Watcher uses Node's `fs.watch()` function to watch over directory changes recursively. For Windows and OSX the `recursive` option is used, which significantly improves the performance.
 Any changes inside `jcr_root` folders are detected and deployed to AEM instance(s) as a package. Rules:
-* Changes to first level folders under `jcr_root` are igored. This is to avoid accidentally removing `apps`, `libs` or any other first level folders in AEM.
+* Changes to first level directories under `jcr_root` are ingored. This is to avoid accidentally removing `apps`, `libs` or any other first level node in AEM.
 * The following are ignored by default: `.svn`, `.git`, `.hg`.
 
 Update interval is the time the Pusher waits for file changes before the package is created. In case of multiple file changes (e.g. switching between code branches), creating a new package per file should be avoided and instead, all changes should be pushed in one go. Lowering the value decreases the delay for a single file change but may increase the delay for multiple file changes. If you are unsure, please leave the default value.
