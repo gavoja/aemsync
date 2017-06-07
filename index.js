@@ -68,4 +68,5 @@ if (require.main === module) {
 
 aemsync.Watcher = Watcher
 aemsync.Pusher = Pusher
+aemsync.main = main
 module.exports = aemsync
