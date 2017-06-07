@@ -1,7 +1,7 @@
 'use strict'
 
 const log = require('./log.js')
-const anymatch = require('anymatch')
+const mm = require('micromatch')
 const chalk = require('chalk')
 const watcher = require('simple-watcher')
 
@@ -13,7 +13,7 @@ class Watcher {
       log.debug('Changed:', localPath)
 
       // Skip excluded.
-      if (exclude && anymatch(exclude, localPath)) {
+      if (exclude && mm(exclude, localPath)) {
         return
       }
 

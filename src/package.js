@@ -76,16 +76,14 @@ class Package {
     item.filterPath = item.filterPath || this.getFilterPath(item.zipPath)
     this.items.push(item)
 
-    this.handleContentXml(item)
-
-    return item
+    return this.handleContentXml(item)
   }
 
   /** Adds all '.content.xml' files on the item's path. */
   handleContentXml (item) {
     // Skip if '.content.xml' file.
     if (path.basename(item.localPath) === CONTENT_XML) {
-      return
+      return item
     }
 
     // Add all '.content.xml' files going up the path.
@@ -105,6 +103,8 @@ class Package {
 
       dirPath = path.dirname(dirPath)
     }
+
+    return item
   }
 
   /** Saves package. */
