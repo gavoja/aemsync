@@ -77,7 +77,6 @@ class Pusher {
       }
     }
 
-
     try {
       // Add all paths to the package.
       let pack = new Package()
