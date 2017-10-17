@@ -8,7 +8,6 @@ const chalk = require('chalk')
 const Watcher = require('./src/watcher')
 const Pusher = require('./src/pusher')
 
-
 const DEFAULT_ZIP_NAME = 'aemsync.zip'
 const MSG_HELP = `Usage: aemsync [OPTIONS]
 
