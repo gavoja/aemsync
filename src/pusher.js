@@ -8,7 +8,7 @@ const log = require('./log.js')
 
 /** Pushes changes to AEM. */
 class Pusher {
-  constructor (targets, interval, onPushEnd) {
+  constructor (targets, interval, zipName, onPushEnd) {
     this.lock = 0
     this.queue = []
     this.targets = targets
@@ -16,6 +16,7 @@ class Pusher {
     this.handlers = [new ContentHandler()]
     this.sender = new Sender(targets)
     this.onPushEnd = onPushEnd || function () {}
+    this.zipName = zipName
   }
 
   start () {
@@ -79,7 +80,7 @@ class Pusher {
 
     try {
       // Add all paths to the package.
-      let pack = new Package()
+      let pack = new Package(this.zipName)
       list.forEach(localPath => {
         let item = pack.add(localPath)
         item && log.info(item.exists ? 'ADD' : 'DEL', chalk.yellow(item.zipPath))

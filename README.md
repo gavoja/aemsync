@@ -23,12 +23,13 @@ npm install aemsync -g
 
 Commandline
 ```
-aemsync -t targets -w path_to_watch
+aemsync -t targets -w path_to_watch -z zip_name
 
 -t: Comma separated list of target hosts; default is http://admin:admin@localhost:4502.
 -w: Folder to watch; default is current.
 -i: Update interval; default is 300ms.
 -e: Anymatch exclude filter; any file matching the pattern will be skipped.
+-z: ZIP file name; default is aemsync.zip
 -d: Enable debug mode.
 ```
 ```
@@ -47,6 +48,7 @@ let targets = [
   'http://admin:admin@localhost:4503'
 ]
 let exclude = '**/*.orig' // Skip merge files.
+let zipName = 'my_project.zip'
 let pushInterval = 300
 let onPushEnd = (err, host) => {
   if (err) {
@@ -55,7 +57,7 @@ let onPushEnd = (err, host) => {
   console.log(`Package pushed to ${host}.`)
 }
 
-aemsync({workingDir, targets, exclude, pushInterval, onPushEnd})
+aemsync({workingDir, targets, exclude, zipName, pushInterval, onPushEnd})
 ```
 
 ### Description

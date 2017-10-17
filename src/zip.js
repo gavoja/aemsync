@@ -6,12 +6,9 @@ const path = require('path')
 const os = require('os')
 const log = require('./log.js')
 
-const DEFAULT_ZIP_NAME = 'aemsync.zip'
-
 class Zip {
   constructor (zipPath) {
-    this.path = path.join(os.tmpdir(), DEFAULT_ZIP_NAME)
-    // this.path = path.join(__dirname, '..', DEFAULT_ZIP_NAME)
+    this.path = path.join(os.tmpdir(), zipPath)
     this.zip = archiver('zip')
 
     log.debug('Creating archive:', this.path)

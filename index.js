@@ -8,12 +8,15 @@ const chalk = require('chalk')
 const Watcher = require('./src/watcher')
 const Pusher = require('./src/pusher')
 
+
+const DEFAULT_ZIP_NAME = 'aemsync.zip'
 const MSG_HELP = `Usage: aemsync [OPTIONS]
 
 Options:
   -t targets           Defult is http://admin:admin@localhost:4502
   -w path_to_watch     Default is current
   -e exclude_filter    Micromatch exclude filter; disabled by default
+  -z zip_name          ZIP file name; default: ${DEFAULT_ZIP_NAME}
   -i sync_interval     Update interval; default is 300ms
   -d                   Enable debug mode
   -h                   Displays this screen
@@ -21,7 +24,8 @@ Options:
 Website: https://github.com/gavoja/aemsync`
 
 function aemsync (args) {
-  let pusher = new Pusher(args.targets.split(','), args.pushInterval, args.onPushEnd)
+  let zipName = args.zipName || DEFAULT_ZIP_NAME
+  let pusher = new Pusher(args.targets.split(','), args.pushInterval, zipName, args.onPushEnd)
   let watcher = new Watcher()
 
   pusher.start()
@@ -51,15 +55,17 @@ function main () {
   let targets = args.t ? args.t : 'http://admin:admin@localhost:4502'
   let pushInterval = args.i ? args.i : 300
   let exclude = args.e ? args.e : ''
+  let zipName = args.z ? args.z : DEFAULT_ZIP_NAME
 
   log.info(`
     Working dir: ${chalk.yellow(workingDir)}
         Targets: ${chalk.yellow(targets)}
        Interval: ${chalk.yellow(pushInterval)}
         Exclude: ${chalk.yellow(exclude)}
+  Zip file name: ${chalk.yellow(zipName)}
   `)
 
-  aemsync({workingDir, targets, pushInterval, exclude})
+  aemsync({workingDir, targets, pushInterval, exclude, zipName})
 }
 
 if (require.main === module) {

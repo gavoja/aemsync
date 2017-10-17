@@ -26,9 +26,10 @@ const FILTER_CHILDREN = `
   </filter>`
 
 class Package {
-  constructor () {
+  constructor (zipName) {
     this.items = []
     this.path = []
+    this.zipName = zipName
   }
 
   /** Gets item with metadata from local path. */
@@ -114,7 +115,7 @@ class Package {
     }
 
     // Create archive and add default package content.
-    let archive = new Zip()
+    let archive = new Zip(this.zipName)
     let jcrRoot = path.join(PACKAGE_CONTENT_PATH, 'jcr_root')
     let metaInf = path.join(PACKAGE_CONTENT_PATH, 'META-INF')
     archive.addLocalDirectory(jcrRoot, 'jcr_root')
