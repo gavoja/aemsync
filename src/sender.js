@@ -28,7 +28,7 @@ class Sender {
     let timestamp = Date.now()
 
     let options = {}
-    options.path = PACKAGE_MANAGER_URL
+    options.path = params.path + PACKAGE_MANAGER_URL
     options.port = params.port
     options.host = params.hostname
     options.headers = {
