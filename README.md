@@ -23,31 +23,61 @@ npm install aemsync -g
 
 Commandline
 ```
-aemsync -t targets -w path_to_watch
+Usage:
+  aemsync [OPTIONS]
 
--t: Comma separated list of target hosts; default is http://admin:admin@localhost:4502.
--w: Folder to watch; default is current.
--i: Update interval; default is 300ms.
--e: Anymatch exclude filter; any file matching the pattern will be skipped.
--d: Enable debug mode.
+Options:
+  -t <targets>            Defult is http://admin:admin@localhost:4502
+  -w <path_to_watch>      Default is current
+  -p <path_to_push>       Path to push directly; used instead of above,
+                          no watching takes place
+  -e <exclude_filter>     Micromatch exclude filter; disabled by default
+  -i <sync_interval>      Update interval; default is 300ms
+  -u <packmgr_path>       Package manager path; default is
+                          /crx/packmgr/service.jsp
+  -d                      Enable debug mode
+  -h                      Displays this screen
 ```
 ```
 aemsync -t http://admin:admin@localhost:4502,http://admin:admin@localhost:4503 -w ~/workspace/my_project
 ```
 
-JavaScript
+JavaScript (full watch example):
 ```JavaScript
 // Import aemsync.
 const aemsync = require('aemsync')
 
 // Set up the environment.
-let workingDir = '~/workspace/my_project'
+const workingDir = '~/workspace/my_project'
+const targets = [
+  'http://admin:admin@localhost:4502',
+  'http://admin:admin@localhost:4503'
+]
+const exclude = '**/*.orig' // Skip merge files.
+const interval = 300
+const packmgrUrl = '/foo/crx/packmgr/service.jsp'
+const onPushEnd = (err, host) => {
+  if (err) {
+    return console.log(`Error when pushing package to ${host}.`, err)
+  }
+  console.log(`Package pushed to ${host}.`)
+}
+
+// Will watch for changes on workingDir and push them.
+aemsync({workingDir, targets, exclude, interval, packmgrUrl, onPushEnd})
+```
+
+JavaScript (direct push example):
+```JavaScript
+// Import aemsync.
+const aemsync = require('aemsync')
+
+// Set up the environment.
+let path = '~/foo/bar/my-workspace/jcr_content/apps/my-app/components/my-component'
 let targets = [
   'http://admin:admin@localhost:4502',
   'http://admin:admin@localhost:4503'
 ]
-let exclude = '**/*.orig' // Skip merge files.
-let pushInterval = 300
 let onPushEnd = (err, host) => {
   if (err) {
     return console.log(`Error when pushing package to ${host}.`, err)
@@ -55,7 +85,8 @@ let onPushEnd = (err, host) => {
   console.log(`Package pushed to ${host}.`)
 }
 
-aemsync({workingDir, targets, exclude, pushInterval, onPushEnd})
+// Will push the path to AEM.
+aemsync.push({path, targets, onPushEnd})
 ```
 
 ### Description

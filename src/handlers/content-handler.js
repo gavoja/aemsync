@@ -2,8 +2,8 @@
 
 const path = require('path')
 
-const RE_CONTENT_PATH = /^.*\/jcr_root(\/[^\/]+){2,}$/
-const RE_SPECIAL = /^.*\/(_jcr_content|[^\/]+\.dir|\.content\.xml).*$/
+const RE_CONTENT_PATH = /^.*\/jcr_root(\/[^/]+){2,}$/
+const RE_SPECIAL = /^.*\/(_jcr_content|[^/]+\.dir|\.content\.xml).*$/
 const RE_TARGET_PATH = /^.*\/(target|\..*)\/(.*\/)?jcr_root\/.*$/
 const IGNORED = ['.svn', '.hg', '.git']
 

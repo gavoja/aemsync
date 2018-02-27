@@ -7,14 +7,14 @@ const Sender = require('./sender.js')
 const log = require('./log.js')
 
 /** Pushes changes to AEM. */
-class Pusher {
-  constructor (targets, interval, onPushEnd) {
+class Pipeline {
+  constructor ({targets, interval, packmgrPath, onPushEnd}) {
     this.lock = 0
     this.queue = []
     this.targets = targets
     this.interval = interval || 300
     this.handlers = [new ContentHandler()]
-    this.sender = new Sender(targets)
+    this.sender = new Sender({targets, packmgrPath})
     this.onPushEnd = onPushEnd || function () {}
   }
 
@@ -72,7 +72,7 @@ class Pusher {
     let finalize = (err) => {
       this.lock = err ? 0 : this.lock - 1
       if (this.lock === 0) {
-        callback(err)
+        callback && callback(err)
         log.groupEnd()
       }
     }
@@ -102,6 +102,10 @@ class Pusher {
       finalize(err)
     }
   }
+
+  push (localPath) {
+    this.process([localPath])
+  }
 }
 
-module.exports = Pusher
+module.exports = Pipeline

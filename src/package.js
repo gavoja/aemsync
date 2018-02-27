@@ -11,7 +11,7 @@ const DATA_PATH = path.resolve(__dirname, '..', 'data')
 const PACKAGE_CONTENT_PATH = path.join(DATA_PATH, 'package_content')
 const NT_FOLDER_PATH = path.join(DATA_PATH, 'nt_folder', '.content.xml')
 const RE_UNSTRUCTURED = /jcr:primaryType\s*=\s*"nt:unstructured"/g
-const RE_CONTENT_PATH = /^.*\/jcr_root(\/[^\/]+){2,}$/
+const RE_CONTENT_PATH = /^.*\/jcr_root(\/[^/]+){2,}$/
 const FILTER_ZIP_PATH = 'META-INF/vault/filter.xml'
 const FILTER_WRAPPER = `<?xml version="1.0" encoding="UTF-8"?>
 <workspaceFilter version="1.0">%s
@@ -148,7 +148,7 @@ class Package {
 
     // Wrap filters
     filters = util.format(FILTER_WRAPPER, filters)
-    archive.addFile(new Buffer(filters), FILTER_ZIP_PATH)
+    archive.addFile(Buffer.from(filters), FILTER_ZIP_PATH)
     log.debug(filters)
     archive.save(callback)
   }
@@ -194,7 +194,7 @@ class Package {
   getFilterPath (localPath) {
     return this.cleanPath(localPath)
       .replace(/(.*jcr_root)|(\.xml$)|(\.dir)/g, '')
-      .replace(/\/_([^\/]*)_([^\/]*)$/g, '\/$1:$2')
+      .replace(/\/_([^/]*)_([^/]*)$/g, '/$1:$2')
   }
 }
 
