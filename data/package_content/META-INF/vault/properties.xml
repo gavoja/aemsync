@@ -3,7 +3,7 @@
 <properties>
 <comment>FileVault Package Properties</comment>
 <entry key="createdBy">AEM Synchronization Tool</entry>
-<!--<entry key="name">cqsync-copy</entry>-->
+<entry key="name">aemsync</entry>
 <!--<entry key="lastModified">2014-06-25T10:14:56.742+02:00</entry>-->
 <!--<entry key="lastModifiedBy">admin</entry>-->
 <!--<entry key="created">2014-06-25T10:14:57.020+02:00</entry>-->
