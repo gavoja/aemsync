@@ -13,7 +13,7 @@ class Watcher {
       log.debug('Changed:', localPath)
 
       // Skip excluded.
-      if (exclude && mm([localPath], {dot: true}, exclude).length > 0) {
+      if (exclude && mm([localPath], exclude, {dot: true}).length > 0) {
         return
       }
 
