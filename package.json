@@ -1,6 +1,6 @@
 {
   "name": "aemsync",
-  "version": "3.0.0",
+  "version": "3.0.2",
   "description": "Adobe AEM Synchronization Tool",
   "author": "Michal Kochel <gavoja@gmail.com>",
   "keywords": [
@@ -19,11 +19,11 @@
   },
   "main": "index.js",
   "dependencies": {
-    "archiver": "^0.21.0",
+    "archiver": "^2.1.1",
     "chalk": "^1.1.3",
     "form-data": "^0.2.0",
     "graceful-fs": "^4.1.11",
-    "micromatch": "^3.0.3",
+    "minimatch": "^3.0.4",
     "minimist": "^1.2.0",
     "simple-watcher": "^3.0.0"
   },

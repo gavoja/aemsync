@@ -73,12 +73,12 @@ JavaScript (direct push example):
 const aemsync = require('aemsync')
 
 // Set up the environment.
-let path = '~/foo/bar/my-workspace/jcr_content/apps/my-app/components/my-component'
-let targets = [
+const path = '~/foo/bar/my-workspace/jcr_content/apps/my-app/components/my-component'
+const targets = [
   'http://admin:admin@localhost:4502',
   'http://admin:admin@localhost:4503'
 ]
-let onPushEnd = (err, host) => {
+const onPushEnd = (err, host) => {
   if (err) {
     return console.log(`Error when pushing package to ${host}.`, err)
   }
