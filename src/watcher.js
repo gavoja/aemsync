@@ -13,7 +13,15 @@ class Watcher {
       log.debug('Changed:', localPath)
 
       // Skip excluded.
-      if (exclude && mm(localPath, exclude, {dot: true})) {
+      if (exclude && Array.isArray(exclude)) {
+        const shouldBeExcluded = exclude.some(function (excludeOne) {
+          return mm(localPath, excludeOne, {dot: true});
+        });
+
+        if (shouldBeExcluded) {
+          return
+        }
+      } else if (exclude && mm(localPath, exclude, {dot: true})) {
         return
       }
 
