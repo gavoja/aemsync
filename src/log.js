@@ -1,58 +1,59 @@
 'use strict'
 
 const Console = require('console').Console
-const chalk = require('chalk')
 
-let c = null
+class Log extends Console {
+  static getInstance () {
+    Log.instance = Log.instance || new Log(process.stdout, process.stderr)
+    return Log.instance
+  }
 
-function Log () {
-  c = c || new Console(process.stdout, process.stderr)
-  let prefix = ''
+  constructor (stdout, stderr) {
+    super(stdout, stderr)
+    this.prefix = ''
+  }
 
-  c.isDebug = false
+  enableDebug () {
+    this.isDebug = true
+  }
 
-  c.format = function (args, color) {
+  disableDebug () {
+    this.isDebug = false
+  }
+
+  _format (args, color) {
     args = Array.apply(null, args)
-    prefix && args.unshift(prefix.slice(0, -1))
+    this.prefix && args.unshift(this.prefix.slice(0, -1))
 
-    args = args.map(function (arg) {
+    return args.map(arg => {
       if (typeof arg === 'string') {
-        // Handle prefix.
-        arg = arg.replace(/\n/g, '\n' + prefix)
-
-        // Handle color.
-        arg = color ? color(arg) : arg
+        arg = arg.replace(/\n/g, '\n' + this.prefix) // Handle prefix.
+        arg = color ? color(arg) : arg // Handle color.
       }
 
       return arg
     })
-
-    return args
   }
 
-  c.debug = function () {
-    if (this.isDebug) {
-      this.log.apply(this, this.format(arguments, chalk.gray))
-    }
+  gray (text) {
+    return `\x1b[90m${text}\x1b[0m`
   }
 
-  c.error = function () {
-    this.log.apply(this, this.format(arguments, chalk.red))
+  group () {
+    this.prefix += '  '
   }
 
-  c.info = function () {
-    this.log.apply(this, this.format(arguments))
+  groupEnd () {
+    this.prefix = this.prefix.slice(0, -2)
   }
 
-  c.group = function () {
-    prefix += '  '
+  info () {
+    this.log.apply(this, this._format(arguments))
   }
 
-  c.groupEnd = function () {
-    prefix = prefix.slice(0, -2)
+  debug () {
+    this.isDebug && super.log.apply(this, this._format(arguments, this.gray))
   }
-
-  return c
 }
 
-module.exports = new Log()
+module.exports = Log.getInstance()

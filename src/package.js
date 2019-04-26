@@ -1,17 +1,16 @@
 'use strict'
 
-const path = require('path')
 const util = require('util')
-const fs = require('graceful-fs')
-const log = require('./log.js')
-const Zip = require('./zip.js')
+const fs = require('fs')
+const path = require('path')
+const globrex = require('globrex')
+const log = require('./log')
+const defaults = require('./defaults')
+const Zip = require('./zip')
 
-const CONTENT_XML = '.content.xml'
 const DATA_PATH = path.resolve(__dirname, '..', 'data')
-const PACKAGE_CONTENT_PATH = path.join(DATA_PATH, 'package_content')
-const NT_FOLDER_PATH = path.join(DATA_PATH, 'nt_folder', '.content.xml')
-const RE_UNSTRUCTURED = /jcr:primaryType\s*=\s*"nt:unstructured"/g
-const RE_CONTENT_PATH = /^.*\/jcr_root(\/[^/]+){2,}$/
+const PACKAGE_CONTENT_PATH = path.join(DATA_PATH, 'package-content')
+const NT_FOLDER_PATH = path.join(DATA_PATH, 'nt-folder', '.content.xml')
 const FILTER_ZIP_PATH = 'META-INF/vault/filter.xml'
 const FILTER_WRAPPER = `<?xml version="1.0" encoding="UTF-8"?>
 <workspaceFilter version="1.0">%s
@@ -25,174 +24,213 @@ const FILTER_CHILDREN = `
     <include pattern="%s/.*" />
   </filter>`
 
+// https://jackrabbit.apache.org/filevault/vaultfs.html
 class Package {
-  constructor () {
-    this.items = []
-    this.path = []
+  constructor (exclude = defaults.exclude) {
+    this.zip = new Zip()
+    this.exclude = exclude || []
+    this.entries = []
   }
 
-  /** Gets item with metadata from local path. */
-  getItem (localPath) {
-    let item = {
-      localPath: localPath
-    }
+  //
+  // Path processing.
+  //
 
-    try {
-      let stat = fs.statSync(localPath)
-      item.exists = true
-      item.isDirectory = stat.isDirectory()
-    } catch (err) {
-      item.exists = false
-    }
-
-    return item
-  }
-
-  /** Adds local path to package. */
   add (localPath) {
-    return this.addItem(this.getItem(localPath))
+    // Clean path.
+    localPath = this._cleanPath(localPath)
+
+    // Added path must be inside 'jcr_root' folder.
+    if (!localPath.includes('jcr_root/')) {
+      return null
+    }
+
+    // If the change is to an xml file, the parent folder will be processed.
+    // It is better to leave the xml file handling to package manager.
+    if (localPath.endsWith('.xml')) {
+      return this.add(path.dirname(localPath))
+    }
+
+    // Include path.
+    const entry = this._deduplicateAndAdd(localPath)
+    if (!entry) {
+      return null
+    }
+
+    // If folder, Add missing .content.xml@nt:folder inside.
+    // This ensures proper handlig when removing inner .content.xml file.
+    this._addContentXml(localPath)
+
+    // Walk up the tree and add all .content.xml files.
+    for (let parentPath = path.dirname(localPath); !parentPath.endsWith('jcr_root'); parentPath = path.dirname(parentPath)) {
+      this._addContentXml(parentPath)
+    }
+
+    return entry
   }
 
-  /** Adds item to package. */
-  addItem (item) {
-    // Handle duplicates.
-    for (let i = this.items.length - 1; i >= 0; --i) {
-      let existingItem = this.items[i]
+  _addContentXml (localPath) {
+    try {
+      if (fs.lstatSync(localPath).isDirectory()) {
+        const contentXmlPath = path.join(localPath, '.content.xml')
+        if (fs.existsSync(contentXmlPath)) {
+          // Include existing .content.xml.
+          this._deduplicateAndAdd(contentXmlPath)
+        } else {
+          // Include missing .content.xml@nt:folder.
+          // This is needed in case the .content.xml was removed locally.
+          this._deduplicateAndAdd(contentXmlPath, NT_FOLDER_PATH)
+        }
+      }
+    } catch (err) {
+      log.debug(err)
+    }
+  }
 
-      // Skip if parent already added.
-      if (item.localPath.startsWith(existingItem.localPath)) {
-        log.debug(`Already added to package, skipping: ${item.localPath}`)
-        return
+  _deduplicateAndAdd (virtualLocalPath, localPath) {
+    virtualLocalPath = this._cleanPath(virtualLocalPath)
+
+    // Handle exclusions.
+    if (this._isExcluded(virtualLocalPath)) {
+      return null
+    }
+
+    // Deduplication handling.
+    const zipPath = this._getZipPath(virtualLocalPath)
+    for (let i = this.entries.length - 1; i >= 0; --i) {
+      const existingZipPath = this.entries[i].zipPath
+
+      // Skip if already added.
+      if (zipPath === existingZipPath) {
+        return log.debug(`Already added to package, skipping: ${zipPath}`)
       }
 
-      // Force replace or remove child if this one is parent.
-      if (existingItem.localPath.startsWith(item.localPath)) {
-        log.debug(`Removing child: ${item.localPath}`)
-        this.items.splice(i, 1)
+      // Skip if parent already added (with exception of .content.xml).
+      if (zipPath.startsWith(existingZipPath) && !zipPath.endsWith('.content.xml')) {
+        return log.debug(`Parent already added to package, skipping: ${zipPath}`)
+      }
+
+      // Remove child if path to add is a parent.
+      if (existingZipPath.startsWith(zipPath)) {
+        log.debug(`Removing child: ${existingZipPath}`)
+        this.entries.splice(i, 1)
       }
     }
 
-    item.zipPath = item.zipPath || this.getZipPath(item.localPath)
-    item.filterPath = item.filterPath || this.getFilterPath(item.zipPath)
-    this.items.push(item)
-
-    return this.handleContentXml(item)
+    localPath = localPath ? this._cleanPath(localPath) : virtualLocalPath
+    const entry = this._getEntry(localPath, zipPath)
+    this.entries.push(entry)
+    return entry
   }
 
-  /** Adds all '.content.xml' files on the item's path. */
-  handleContentXml (item) {
-    // Skip if '.content.xml' file.
-    if (path.basename(item.localPath) === CONTENT_XML) {
-      return item
+  _isExcluded (localPath) {
+    for (const globPattern of this.exclude) {
+      const regex = globrex(globPattern, { globstar: true, extended: true }).regex
+      if (regex.test(localPath)) {
+        return true
+      }
     }
 
-    // Add all '.content.xml' files going up the path.
-    let dirPath = path.dirname(item.localPath)
-    while (this.cleanPath(dirPath).match(RE_CONTENT_PATH)) {
-      let contentXmlPath = path.join(dirPath, CONTENT_XML)
-      let contents = this.getFileContents(contentXmlPath)
-      // Process parent if 'nt:unstructured' found.
-      if (contents && contents.match(RE_UNSTRUCTURED)) {
-        return this.addItem(this.getItem(dirPath))
-      }
-
-      // Process '.content.xml'.
-      if (contents) {
-        this.addItem(this.getItem(contentXmlPath))
-      }
-
-      dirPath = path.dirname(dirPath)
-    }
-
-    return item
+    return false
   }
 
-  /** Saves package. */
-  save (callback) {
-    if (this.items.length === 0) {
-      callback(null)
+  //
+  // Zip creation.
+  //
+
+  save (archivePath) {
+    if (this.entries.length === 0) {
+      return null
     }
 
     // Create archive and add default package content.
-    let archive = new Zip()
     let jcrRoot = path.join(PACKAGE_CONTENT_PATH, 'jcr_root')
     let metaInf = path.join(PACKAGE_CONTENT_PATH, 'META-INF')
-    archive.addLocalDirectory(jcrRoot, 'jcr_root')
-    archive.addLocalDirectory(metaInf, 'META-INF')
+    this.zip.add(jcrRoot, 'jcr_root')
+    this.zip.add(metaInf, 'META-INF')
 
-    // Iterate over all items
-    let filters = ''
-    this.items.forEach((item) => {
-      // Update filters (delete).
-      if (!item.exists) {
-        filters += util.format(FILTER, item.filterPath)
-        return
-      }
-
-      // Update filters (add).
-      // When adding we need to account for all the sibbling '.content.xml' files.
-      let dirName = path.dirname(item.filterPath)
-      filters += util.format(FILTER_CHILDREN, dirName, dirName, item.filterPath, item.filterPath)
-
-      // Add directory to archive.
-      if (item.isDirectory) {
-        archive.addLocalDirectory(item.localPath, item.zipPath, (localPath, zipPath) => {
-          // Add as 'nt:folder' if no '.content.xml'.
-          this.addNtFolder(archive, localPath, zipPath)
-        })
-      // Add file to archive
+    // Add each entry.
+    const filters = []
+    for (let entry of this.entries) {
+      if (!entry.exists) {
+        // DELETE
+        // Only filters need to be updated.
+        filters.push(util.format(FILTER, entry.filterPath))
       } else {
-        archive.addLocalFile(item.localPath, item.zipPath)
+        // ADD
+        // Filters need to be updated.
+        const dirName = path.dirname(entry.filterPath)
+        // if (!entry.localPath.endsWith('.content.xml')) {
+        filters.push(util.format(FILTER_CHILDREN, dirName, dirName, entry.filterPath, entry.filterPath))
+        // }
+
+        // ADD
+        // File or folder needs to be added to the zip.
+        this.zip.add(entry.localPath, entry.zipPath)
       }
-    })
-
-    // Wrap filters
-    filters = util.format(FILTER_WRAPPER, filters)
-    archive.addFile(Buffer.from(filters), FILTER_ZIP_PATH)
-    log.debug(filters)
-    archive.save(callback)
-  }
-
-  /** Additional handling of directories added recursively. */
-  addNtFolder (archive, localPath, zipPath) {
-    // Add nt:folder if needed.
-    let contentXml = path.join(localPath, CONTENT_XML)
-    let hasContentXml = fs.existsSync(contentXml)
-    let hasContentFolder = localPath.indexOf('_jcr_content') !== -1
-    if (!hasContentFolder && !hasContentXml) {
-      archive.addLocalFile(NT_FOLDER_PATH, this.getZipPath(contentXml))
-      log.group()
-      log.debug('Added as nt:folder.')
-      log.groupEnd()
     }
+
+    // Add filter file.
+    const filter = util.format(FILTER_WRAPPER, filters.join('\n'))
+    this.zip.add(Buffer.from(filter), FILTER_ZIP_PATH)
+
+    // Debug package contents.
+    log.debug('Package details:')
+    log.group()
+    log.debug(JSON.stringify(this.zip.inspect(), null, 2))
+    log.groupEnd()
+
+    return this.zip.save(archivePath)
   }
 
-  /** Gets file contents; returns null if does not exist or other error. */
-  getFileContents (localPath) {
-    let contents
+  //
+  // Entry handling.
+  //
+
+  // Entry format:
+  // {
+  //   localPath:    Path to the local file
+  //   zipPath:      Path inside zip
+  //   filterPath:   Vault filter path
+  //   isFolder
+  //   exists
+  // }
+  _getEntry (localPath, zipPath) {
+    localPath = this._cleanPath(localPath)
+
+    const entry = {
+      localPath,
+      zipPath,
+      filterPath: this._getFilterPath(zipPath)
+    }
+
     try {
-      contents = fs.readFileSync(localPath, 'utf8')
+      const stat = fs.statSync(localPath)
+      entry.exists = true
+      entry.isFolder = stat.isDirectory()
     } catch (err) {
-      // File likely does not exist.
-      contents = null
+      entry.exists = false
     }
 
-    return contents
+    return entry
   }
 
-  /** Replaces backslashes with slashes. */
-  cleanPath (localPath) {
-    return path.resolve(localPath).replace(/\\/g, '/')
+  _cleanPath (localPath) {
+    return path.resolve(localPath)
+      .replace(/\\/g, '/') // Replace backlashes with slashes.
+      .replace(/\/$/, '') // Remove trailing slash.
   }
 
-  /** Gets a zip path from a local path. */
-  getZipPath (localPath) {
-    return this.cleanPath(localPath).replace(/.*\/(jcr_root\/.*)/, '$1')
+  _getZipPath (localPath) {
+    return this._cleanPath(localPath)
+      .replace(/.*\/(jcr_root\/.*)/, '$1')
   }
 
-  /** Gets a filter path from a local path. */
-  getFilterPath (localPath) {
-    return this.cleanPath(localPath)
+  _getFilterPath (localPath) {
+    // .content.xml will result in .content entries.
+    // Although incorrect, it does not matter and makes the handling
+    // consistent.
+    return this._cleanPath(localPath)
       .replace(/(.*jcr_root)|(\.xml$)|(\.dir)/g, '')
       .replace(/\/_([^/]*)_([^/]*)$/g, '/$1:$2')
   }

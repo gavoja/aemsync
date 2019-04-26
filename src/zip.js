@@ -1,106 +1,108 @@
 'use strict'
 
-const archiver = require('archiver') // TODO: consider using zip-stream for less dependencies.
-const fs = require('graceful-fs')
 const path = require('path')
 const os = require('os')
-const log = require('./log.js')
+const fs = require('fs')
+const AdmZip = require('adm-zip')
 
-const DEFAULT_ZIP_NAME = 'aemsync.zip'
+const DEFAULT_ARCHIVE_PATH = path.join(os.tmpdir(), 'aemsync.zip')
 
 class Zip {
-  constructor (zipPath) {
-    this.path = path.join(os.tmpdir(), DEFAULT_ZIP_NAME)
-    // this.path = path.join(__dirname, '..', DEFAULT_ZIP_NAME)
-    this.zip = archiver('zip')
-
-    log.debug('Creating archive:', this.path)
-    this.output = fs.createWriteStream(this.path)
-    this.zip.pipe(this.output)
+  constructor (archivePath) {
+    this.zip = archivePath ? new AdmZip(archivePath) : new AdmZip()
   }
 
-  isFile (localPath) {
-    let stat = fs.statSync(localPath)
-    return stat && stat.isFile()
-  }
-
-  isDirectory (localPath) {
-    let stat = fs.statSync(localPath)
-    return stat && stat.isDirectory()
-  }
-
-  addLocalFile (localPath, zipPath) {
-    // Normalize slashes.
-    zipPath = zipPath.replace(/\\/g, '/')
-
-    // Only files can be zipped.
-    if (!this.isFile(localPath)) {
-      return
-    }
-
-    log.debug('Zipping:', zipPath)
-    this.zip.append(fs.createReadStream(localPath), {
-      name: zipPath
-    })
-  }
-
-  addLocalDirectory (localPath, zipPath, callback) {
-    if (!this.isDirectory(localPath)) {
-      return
-    }
-
-    // Ensure slash.
-    zipPath = zipPath.endsWith('/') ? zipPath : `${zipPath}/`
-
-    let items = this.walkSync(localPath)
-    for (let i = 0; i < items.length; ++i) {
-      let subLocalPath = items[i]
-      let subZipPath = zipPath + subLocalPath.substr(localPath.length + 1)
-      this.addLocalFile(subLocalPath, subZipPath)
-      callback && callback(subLocalPath, subZipPath)
+  // One method to add them all. Clean API is always nice.
+  add (localPathOrBuffer, zipPath) {
+    if (typeof localPathOrBuffer === 'string') {
+      for (const entry of this._getEntriesToAdd(localPathOrBuffer, zipPath)) {
+        this._addIfNotExists(entry.zipPath, entry.buffer)
+      }
+    } else {
+      this._addIfNotExists(zipPath, localPathOrBuffer)
     }
   }
 
-  addFile (content, zipPath) {
-    log.debug('Zipping:', zipPath)
-    this.zip.append(content, {
-      name: zipPath
-    })
+  save (archivePath = DEFAULT_ARCHIVE_PATH) {
+    // TODO:
+    // Technically, the data could be stored to a buffer instead.
+    // The package manager however does not play well with buffers.
+    // Something to think about in future.
+    this.zip.writeZip(archivePath)
+    return archivePath
   }
 
-  /** Recursively walks over directory. */
-  walkSync (localPath) {
-    localPath = path.resolve(localPath)
-
-    let results = []
-
-    // Add current item.
-    results.push(localPath)
-
-    // No need for recursion if not a directory.
-    if (!this.isDirectory(localPath)) {
-      return results
+  _addIfNotExists (zipPath, buffer) {
+    if (this.zip.getEntry(zipPath) === null) {
+      this.zip.addFile(zipPath, buffer)
     }
-
-    // Iterate over list of children.
-    let children = fs.readdirSync(localPath)
-
-    for (let i = 0; i < children.length; ++i) {
-      let child = path.resolve(localPath, children[i])
-      results = results.concat(this.walkSync(child))
-    }
-
-    return results
   }
 
-  save (callback) {
-    let that = this
+  // Using getLocalFolder() and getLocalFile() methods would have been simpler,
+  // however adm-zip does not handle empty folders properly.
+  // A top-down walk to identify all items makes the handlinng consistent
+  // for all the cases.
+  _getEntriesToAdd (localPath, zipPath) {
+    const entries = [] // [{ localPath, zipPath, buffer }]
+    const pipeline = [{ localPath, zipPath }]
 
-    this.output.on('close', () => {
-      callback(that.path)
-    })
+    while (pipeline.length) {
+      const current = pipeline.pop()
+      if (this._isFolder(current.localPath)) {
+        // Add folder.
+        entries.push({ localPath: current.localPath, zipPath: current.zipPath + '/', buffer: Buffer.alloc(0) })
 
-    this.zip.finalize() // Trigers the above.
+        // Walk down the tree.
+        for (const entityName of fs.readdirSync(current.localPath)) {
+          pipeline.push({
+            localPath: current.localPath + '/' + entityName,
+            zipPath: current.zipPath + '/' + entityName
+          })
+        }
+      } else {
+        // Add file.
+        entries.push({ ...current, buffer: fs.readFileSync(current.localPath) })
+      }
+    }
+
+    return entries
+  }
+
+  _isFolder (filePath) {
+    try {
+      return fs.lstatSync(filePath).isDirectory()
+    } catch (err) {
+      return false
+    }
+  }
+
+  //
+  // Archive debugging.
+  //
+
+  inspect () {
+    return { entries: this._getEntries(), filter: this._getFilter() }
+  }
+
+  _getEntries () {
+    const entries = []
+    for (const entry of this.zip.getEntries()) {
+      if (entry.entryName.endsWith('.content.xml')) {
+        // Read the resource type.
+        const re = /jcr:primaryType\s*=\s*"([^"]+)"/g
+        const content = this.zip.readAsText(entry.entryName)
+        const type = (re.exec(content) || ['', 'undefined'])[1]
+        entries.push(entry.entryName + '@' + type)
+      } else {
+        entries.push(entry.entryName)
+      }
+    }
+
+    return entries
+  }
+
+  _getFilter () {
+    return this.zip.readAsText('META-INF/vault/filter.xml').split('\n').map(line => line.trim())
   }
 }
 

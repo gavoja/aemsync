@@ -2,48 +2,53 @@
 
 const minimist = require('minimist')
 const path = require('path')
-const fs = require('graceful-fs')
+const fs = require('fs')
+const watch = require('simple-watcher')
+const defaults = require('./src/defaults')
 const log = require('./src/log')
-const chalk = require('chalk')
-const Watcher = require('./src/watcher')
 const Pipeline = require('./src/pipeline')
+const { version } = require('./package.json')
 
 const MSG_HELP = `
+The code and content synchronization for Sling / AEM; version ${version}.
+
 Usage:
   aemsync [OPTIONS]
 
 Options:
-  -t <targets>            Defult is http://admin:admin@localhost:4502
-  -w <path_to_watch>      Default is current
-  -p <path_to_push>       Path to push directly; used instead of above,
-                          no watching takes place
-  -e <exclude_filter>     Micromatch exclude filter; disabled by default
-  -i <sync_interval>      Update interval; default is 300ms
-  -u <packmgr_path>       Package manager path; default is
-                          /crx/packmgr/service.jsp
-  -d                      Enable debug mode
-  -h                      Displays this screen
+  -t <target>          URL to AEM instance; multiple can be set.
+                       Default: ${defaults.targets}
+  -w <path_to_watch>   Watch over folder.
+                       Default: CWD
+  -p <path_to_push>    Push specific file or folder.
+  -e <exclude_filter>  Extended glob filter; multiple can be set.
+                       Default:
+                         **/jcr_root/*
+                         **/@(.git|.svn|.hg|target)
+                         **/@(.git|.svn|.hg|target)/**
+  -i <sync_interval>   Update interval.
+                       Default: ${defaults.interval} ms
+  -u <packmgr_path>    Package manager path.
+                       Default: ${defaults.packmgrPath}
+  -d                   Enable debug mode.
+  -h                   Display this screen.
 
 Website:
   https://github.com/gavoja/aemsync
 `
 
-function aemsync (args) {
-  const pipeline = new Pipeline(args)
-  const watcher = new Watcher()
+function aemsync (workingDir, { targets, interval, exclude, packmgrPath, onPushEnd }) {
+  const pipeline = new Pipeline({ targets, interval, exclude, packmgrPath, onPushEnd })
 
   pipeline.start()
-
-  args.callback = (localPath) => {
+  watch(workingDir, localPath => {
     pipeline.enqueue(localPath)
-  }
-
-  watcher.watch(args)
+  })
 }
 
-function push (args) {
-  const pipeline = new Pipeline(args)
-  pipeline.push(args.pathToPush)
+async function push (pathToPush, { targets, exclude, packmgrPath }) {
+  const pipeline = new Pipeline({ targets, exclude, packmgrPath })
+  return pipeline.push(pathToPush)
 }
 
 function main () {
@@ -54,44 +59,51 @@ function main () {
     return console.log(MSG_HELP)
   }
 
-  // Get other args.
-  log.isDebug = args.d
-  const workingDir = path.resolve(args.w || '.')
-  const targets = (args.t || 'http://admin:admin@localhost:4502').split(',')
-  const interval = args.i || 300
-  const exclude = args.e || ''
-  const packmgrPath = args.u
+  // Print additional debug information.
+  args.d && log.enableDebug()
 
+  // Get the args.
+  const pathToPush = args.p ? path.resolve(args.p) : null
+  const workingDir = path.resolve(args.w || defaults.workingDir)
+  const targets = args.t ? (typeof args.t === 'string' ? [args.t] : args.t) : defaults.targets
+  const exclude = args.e ? (typeof args.e === 'string' ? [args.e] : args.e) : defaults.exclude
+  const interval = args.i || defaults.interval
+  const packmgrPath = args.u || defaults.packmgrPath
+
+  //
   // Just the push.
-  if (args.p) {
-    let pathToPush = path.resolve(args.p)
-    if (!fs.existsSync(pathToPush)) {
-      return log.info('Invalid path:', chalk.yellow(workingDir))
-    }
+  //
 
-    return push({pathToPush, targets})
+  if (pathToPush) {
+    // Path to push does not have to exist.
+    // Non-existing path can be used for deletion.
+    return push(pathToPush, { targets })
   }
 
+  //
+  // Watch mode.
+  //
+
   if (!fs.existsSync(workingDir)) {
-    return log.info('Invalid path:', chalk.yellow(workingDir))
+    return log.info('Invalid path:', log.gray(workingDir))
   }
 
   // Start aemsync
-  log.info(`
-      Working dir: ${chalk.yellow(workingDir)}
-          Targets: ${chalk.yellow(targets)}
-         Interval: ${chalk.yellow(interval)}
-          Exclude: ${chalk.yellow(exclude)}
+  log.info(`aemsync version ${version}
+
+    Watch over: ${log.gray(workingDir)}
+       Targets: ${log.gray(targets.map((t, ii) => ii === 0 ? t : ''.padStart(16, ' ') + t).join('\n'))}
+       Exclude: ${log.gray(exclude.map((x, ii) => ii === 0 ? x : ''.padStart(16, ' ') + x).join('\n'))}
+      Interval: ${log.gray(interval)}
   `)
 
-  aemsync({workingDir, targets, interval, exclude, packmgrPath})
+  aemsync(workingDir, { targets, interval, exclude, packmgrPath })
 }
 
 if (require.main === module) {
   main()
 }
 
-aemsync.Watcher = Watcher
 aemsync.Pipeline = Pipeline
 aemsync.main = main
 aemsync.push = push

@@ -1,9 +1,10 @@
 {
   "name": "aemsync",
-  "version": "3.0.2",
-  "description": "Adobe AEM Synchronization Tool",
+  "version": "4.0.0-rc1",
+  "description": "The code and content synchronization for Sling / AEM (Adobe Experience Manager).",
   "author": "Michal Kochel <gavoja@gmail.com>",
   "keywords": [
+    "Adobe",
     "AEM",
     "CQ",
     "Sling",
@@ -18,14 +19,20 @@
     "url": "https://github.com/gavoja/aemsync.git"
   },
   "main": "index.js",
+  "devDependencies": {
+    "triala": "^0.3.0"
+  },
   "dependencies": {
-    "archiver": "^2.1.1",
-    "chalk": "^1.1.3",
-    "form-data": "^0.2.0",
-    "graceful-fs": "^4.1.11",
-    "minimatch": "^3.0.4",
+    "adm-zip": "^0.4.13",
+    "form-data": "^2.3.3",
+    "globrex": "^0.1.2",
     "minimist": "^1.2.0",
-    "simple-watcher": "^3.0.0"
+    "node-fetch": "^2.4.1",
+    "simple-watcher": "^4.0.0",
+    "xml-to-json-stream": "^1.1.0"
+  },
+  "scripts": {
+    "test": "node test.js -v"
   },
   "bin": {
     "aemsync": "./bin/aemsync"

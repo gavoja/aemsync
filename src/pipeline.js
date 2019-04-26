@@ -1,110 +1,128 @@
 'use strict'
 
-const chalk = require('chalk')
-const ContentHandler = require('./handlers/content-handler.js')
-const Package = require('./package.js')
-const Sender = require('./sender.js')
-const log = require('./log.js')
+const fs = require('fs')
+const fetch = require('node-fetch')
+const FormData = require('form-data')
+const xmlToJson = require('xml-to-json-stream')
+const Package = require('./package')
+const log = require('./log')
+const defaults = require('./defaults')
 
-/** Pushes changes to AEM. */
 class Pipeline {
-  constructor ({targets, interval, packmgrPath, onPushEnd}) {
-    this.lock = 0
+  constructor (opts = {}) {
+    this.lock = false
     this.queue = []
-    this.targets = targets
-    this.interval = interval || 300
-    this.handlers = [new ContentHandler()]
-    this.sender = new Sender({targets, packmgrPath})
-    this.onPushEnd = onPushEnd || function () {}
+    this.packmgrPath = opts.packmgrPath || defaults.packmgrPath
+    this.targets = opts.targets || defaults.target
+    this.interval = opts.interval || defaults.interval
+    this.exclude = opts.exclude || defaults.exclude
+    this.onPushEnd = opts.onPushEnd || function () {}
   }
 
   start () {
-    setInterval(() => {
-      this.processQueue()
+    setInterval(async () => {
+      await this._processQueue()
     }, this.interval)
   }
 
   enqueue (localPath) {
+    log.debug(`Changed: ${localPath}`)
     this.queue.push(localPath)
   }
 
-  /** Processes queue. */
-  processQueue () {
+  async push (pathToPush) {
+    this.enqueue(pathToPush)
+    return this._processQueue()
+  }
+
+  async _processQueue () {
     // Wait for the previous package to install.
     // Otherwise an error may occur if two concurrent packages try to make
     // changes to the same node.
-    if (this.lock > 0) {
-      return
+    if (this.lock === true || this.queue.length < 1) {
+      return null
     }
 
-    // Get unique list of local paths.
-    let dict = {}
+    // Lock the queue.
+    this.lock = true
+
+    // Create package.
+    const pack = new Package(this.exclude)
     while (this.queue.length > 0) {
-      dict[this.queue.pop()] = true
+      const localPath = this.queue.pop()
+      const item = pack.add(localPath)
+      item && log.info(item.exists ? '+' : '-', item.zipPath)
     }
 
-    // Get all the items.
-    let list = []
-    Object.keys(dict).forEach(localPath => {
-      this.handlers.forEach(handler => {
-        let processedPath = handler.process(localPath)
-        processedPath && list.push(processedPath)
-      })
-    })
-
-    // Skip if no items to add to package ...
-    if (list.length === 0) {
-      return
-    }
-
-    // .. otherwise, process.
-    this.process(list, err => {
-      if (err) {
-        // Restore the queue if anything goes wrong.
-        // It will be processed in the next tick.
-        this.queue = this.queue.concat(list)
+    // Push package to targets (if any entries detected).
+    log.group()
+    const archivePath = pack.save()
+    if (archivePath) {
+      for (const target of this.targets) {
+        const result = await this._post(archivePath, target)
+        this.onPushEnd(result.err, result.target, result.log)
+        log.info(log.gray(target + ' >'), log.gray(result.err ? result.err.message : 'OK'))
       }
-    })
+    }
+    log.groupEnd()
+
+    // Release lock.
+    this.lock = false
+
+    return pack
   }
 
-  process (list, callback) {
-    // Finalization function.
-    let finalize = (err) => {
-      this.lock = err ? 0 : this.lock - 1
-      if (this.lock === 0) {
-        callback && callback(err)
-        log.groupEnd()
-      }
-    }
+  async _post (archivePath, target) {
+    const url = target + this.packmgrPath
+    const form = new FormData()
+    form.append('file', fs.createReadStream(archivePath))
+    form.append('force', 'true')
+    form.append('install', 'true')
 
+    const result = { target }
     try {
-      // Add all paths to the package.
-      let pack = new Package()
-      list.forEach(localPath => {
-        let item = pack.add(localPath)
-        item && log.info(item.exists ? 'ADD' : 'DEL', chalk.yellow(item.zipPath))
-      })
+      const res = await fetch(url, { method: 'POST', body: form })
 
-      // Save the package.
-      log.group()
-      this.lock = this.targets.length
-      pack.save(packagePath => {
-        // Send the saved package.
-        this.sender.send(packagePath, (err, host, delta, time) => {
-          let prefix = `Deploying to [${chalk.yellow(host)}] in ${delta} ms at ${time}`
-          err ? log.info(`${prefix}: ${chalk.red(err)}`) : log.info(`${prefix}: ${chalk.green('OK')}`)
-          this.onPushEnd(err, host)
-          finalize()
-        })
-      })
+      if (res.ok) {
+        const text = await res.text()
+        log.debug('Response text:')
+        log.group()
+        log.debug(text)
+        log.groupEnd()
+
+        // Handle errors with AEM response.
+        try {
+          const obj = await this._parseXml(text)
+          result.log = obj.crx.response.data.log
+          const errorLines = [...new Set(result.log.split('\n').filter(line => line.startsWith('E')))]
+
+          // Errors when installing selected nodes.
+          if (errorLines.length) {
+            result.err = new Error('Error installing nodes:\n' + errorLines.join('\n'))
+          // Error code in status.
+          } else if (obj.crx.response.status.code !== '200') {
+            result.err = new Error(obj.crx.response.status.textNode)
+          }
+        } catch (err) {
+          // Unexpected response format.
+          throw new Error('Unexpected response text format')
+        }
+      } else {
+        // Handle errors with failer request.
+        result.err = new Error(res.statusText)
+      }
     } catch (err) {
-      log.error(err)
-      finalize(err)
+      // Handle unexpeted errors.
+      result.err = err
     }
+
+    return result
   }
 
-  push (localPath) {
-    this.process([localPath])
+  _parseXml (xml) {
+    return new Promise(resolve => {
+      xmlToJson().xmlToJson(xml, (err, json) => err ? resolve({}) : resolve(json))
+    })
   }
 }
 
