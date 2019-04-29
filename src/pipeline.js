@@ -12,6 +12,7 @@ class Pipeline {
   constructor (opts = {}) {
     this.lock = false
     this.queue = []
+    this.checkBeforePush = opts.checkBeforePush || defaults.checkBeforePush
     this.packmgrPath = opts.packmgrPath || defaults.packmgrPath
     this.targets = opts.targets || defaults.target
     this.interval = opts.interval || defaults.interval
@@ -79,6 +80,11 @@ class Pipeline {
     form.append('force', 'true')
     form.append('install', 'true')
 
+    // Check if AEM is up and runnig.
+    if (this.checkBeforePush && !await this._check(target)) {
+      return { target, err: new Error('AEM not ready') }
+    }
+
     const result = { target }
     try {
       const res = await fetch(url, { method: 'POST', body: form })
@@ -108,7 +114,7 @@ class Pipeline {
           throw new Error('Unexpected response text format')
         }
       } else {
-        // Handle errors with failer request.
+        // Handle errors with the failed request.
         result.err = new Error(res.statusText)
       }
     } catch (err) {
@@ -117,6 +123,17 @@ class Pipeline {
     }
 
     return result
+  }
+
+  async _check (target) {
+    try {
+      const res = await fetch(target + '/system/console/bundles.json')
+      const obj = await res.json()
+      return obj.s.length === 5 && obj.s[3] === 0 && obj.s[4] === 0
+    } catch (err) {
+      log.debug(err.message)
+      return false
+    }
   }
 
   _parseXml (xml) {

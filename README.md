@@ -31,22 +31,23 @@ Usage:
   aemsync [OPTIONS]
 
 Options:
-  -t <target>          URL to AEM instance; multiple can be set.
-                       Default: ${defaults.targets}
-  -w <path_to_watch>   Watch over folder.
-                       Default: CWD
-  -p <path_to_push>    Push specific file or folder.
-  -e <exclude_filter>  Extended glob filter; multiple can be set.
-                       Default:
-                         **/jcr_root/*
-                         **/@(.git|.svn|.hg|target)
-                         **/@(.git|.svn|.hg|target)/**
-  -i <sync_interval>   Update interval.
-                       Default: ${defaults.interval} ms
-  -u <packmgr_path>    Package manager path.
-                       Default: ${defaults.packmgrPath}
-  -d                   Enable debug mode.
-  -h                   Display this screen.
+  -t <target>           URL to AEM instance; multiple can be set.
+                        Default: ${defaults.targets}
+  -w <path_to_watch>    Watch over folder.
+                        Default: CWD
+  -p <path_to_push>     Push specific file or folder.
+  -e <exclude_filter>   Extended glob filter; multiple can be set.
+                        Default:
+                          **/jcr_root/*
+                          **/@(.git|.svn|.hg|target)
+                          **/@(.git|.svn|.hg|target)/**
+  -i <sync_interval>    Update interval.
+                        Default: ${defaults.interval} ms
+  -u <packmgr_path>     Package manager path.
+                        Default: ${defaults.packmgrPath}
+  -c                    Check if AEM is up and running before pushing.
+  -d                    Enable debug mode.
+  -h                    Display this screen.
 
 Examples:
   Magic:
@@ -54,7 +55,7 @@ Examples:
   Custom targets:
     > aemsync -t http://admin:admin@localhost:4502 -t http://admin:admin@localhost:4503 -w ~/workspace/my_project
   Custom exclude rules:
-    > aemsync -e **/@(.git) -e **/@(.git)/** -e '**/*.orig'
+    > aemsync -e **/*.orig -e **/test -e -e **/test/**
   Just push, don't watch:
     > aemsync -p /foo/bar/my-workspace/jcr_content/apps/my-app/components/my-component
 ```
@@ -81,9 +82,10 @@ const onPushEnd = (err, target, log) => {
     console.log(`Package pushed to ${target}. Response log:\n${target.log}`)
   }
 }
+const checkBeforePush = true
 
-// Will watch for changes on workingDir and push them upon a file change.
-aemsync(workingDir, { targets, exclude, interval, packmgrUrl, onPushEnd })
+// Will watch for changes over workingDir and push upon a file change.
+aemsync(workingDir, { targets, exclude, interval, packmgrUrl, onPushEnd, checkBeforePush })
 ```
 
 JavaScript (direct push example):
@@ -105,11 +107,12 @@ const onPushEnd = (err, target, log) => {
     console.log(`Package pushed to ${target}. Response log:\n${target.log}`)
   }
 }
+const checkBeforePush = true
 
 // Will push the path to AEM.
 // To use await, the call must be made inside an async function.
 // The result is a Promise so it can also be resolved with .then().
-await push(pathToPush, { targets, onPushEnd })
+await push(pathToPush, { targets, onPushEnd, checkBeforePush })
 ```
 
 ### Description
@@ -121,11 +124,11 @@ Any changes inside `jcr_root` folders are detected and deployed to AEM instance(
 * Any paths containing `.svn`, `.git`, `.hg` or `target` are ignored.
 * The exclude filter can be overriden. Do note that this will remove the above rules completely and if required, they must be added manually.
 
-Update interval is the time the Pusher waits for file changes before the package is created. In case of multiple file changes (e.g. switching between code branches), creating a new package per file should be avoided and instead, all changes should be pushed in one go. Lowering the value decreases the delay for a single file change but may increase the delay for multiple file changes. If you are unsure, please leave the default value.
+Update interval is the time aemsync waits for file changes before the package is created. In case of multiple file changes (e.g. switching between code branches), creating a new package per file should be avoided and instead, all changes should be pushed in one go. Lowering the value decreases the delay for a single file change but may increase the delay for multiple file changes. If you are unsure, please leave the default value.
 
 ### Caveats
 
-1. Packages are installed using package manager service (`/crx/packmgr/service.jsp`), which takes some time to initialize after AEM startup. If the push happens before, the Sling Post Servlet will take over causing the `/crx/packmgr/service.jsp/file` node to be added to the repository.
+1. Packages are installed using package manager service (`/crx/packmgr/service.jsp`), which takes some time to initialize after AEM startup. If the push happens before, the Sling Post Servlet will take over causing the `/crx/packmgr/service.jsp/file` node to be added to the repository. Use `-c` option to performs a status check before sending (all bundles must be active).
 2. Changing any XML file will cause the parent folder to be pushed. Given the many special cases around XML files, the handlig is left to the package manager.
 
 ### Backward incompatible changes since version 4
