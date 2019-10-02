@@ -232,7 +232,7 @@ class Package {
     // consistent.
     return this._cleanPath(localPath)
       .replace(/(.*jcr_root)|(\.xml$)|(\.dir)/g, '')
-      .replace(/\/_([^/]*)_([^/]*)$/g, '/$1:$2')
+      .replace(/\/_([^/^_]*)_([^/]*)$/g, '/$1:$2')
   }
 }
 
