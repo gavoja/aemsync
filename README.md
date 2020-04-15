@@ -85,6 +85,7 @@ const onPushEnd = (err, target, log) => {
 const checkBeforePush = true
 
 // Will watch for changes over workingDir and push upon a file change.
+// Only the first argument is mandatory.
 aemsync(workingDir, { targets, exclude, interval, packmgrUrl, onPushEnd, checkBeforePush })
 ```
 
@@ -112,6 +113,7 @@ const checkBeforePush = true
 // Will push the path to AEM.
 // To use await, the call must be made inside an async function.
 // The result is a Promise so it can also be resolved with .then().
+// Only the first argument is mandatory.
 await push(pathToPush, { targets, onPushEnd, checkBeforePush })
 ```
 
