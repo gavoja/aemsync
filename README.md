@@ -72,7 +72,7 @@ const targets = [
   'http://admin:admin@localhost:4503'
 ]
 const exclude = ['**/*.orig'] // Skip merge files.
-const packmgrUrl = '/foo/crx/packmgr/service.jsp'
+const packmgrPath = '/foo/crx/packmgr/service.jsp'
 const interval = 300
 const onPushEnd = (err, target, log) => {
   // Called for each of the targets.
@@ -86,7 +86,7 @@ const checkBeforePush = true
 
 // Will watch for changes over workingDir and push upon a file change.
 // Only the first argument is mandatory.
-aemsync(workingDir, { targets, exclude, interval, packmgrUrl, onPushEnd, checkBeforePush })
+aemsync(workingDir, { targets, exclude, interval, packmgrPath, onPushEnd, checkBeforePush })
 ```
 
 JavaScript (direct push example):
