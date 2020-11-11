@@ -144,14 +144,14 @@ class Package {
     }
 
     // Create archive and add default package content.
-    let jcrRoot = path.join(PACKAGE_CONTENT_PATH, 'jcr_root')
-    let metaInf = path.join(PACKAGE_CONTENT_PATH, 'META-INF')
+    const jcrRoot = path.join(PACKAGE_CONTENT_PATH, 'jcr_root')
+    const metaInf = path.join(PACKAGE_CONTENT_PATH, 'META-INF')
     this.zip.add(jcrRoot, 'jcr_root')
     this.zip.add(metaInf, 'META-INF')
 
     // Add each entry.
     const filters = []
-    for (let entry of this.entries) {
+    for (const entry of this.entries) {
       if (!entry.exists) {
         // DELETE
         // Only filters need to be updated.
@@ -232,7 +232,7 @@ class Package {
     // consistent.
     return this._cleanPath(localPath)
       .replace(/(.*jcr_root)|(\.xml$)|(\.dir)/g, '')
-      .replace(/\/_([^/]*)_([^/]*)$/g, '/$1:$2')
+      .replace(/\/_([^/^_]*)_([^/]*)$/g, '/$1:$2')
   }
 }
 

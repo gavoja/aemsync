@@ -611,4 +611,51 @@ test('aemsync', class {
     const result = await this._push(path.join(COMPONENT, 'deleted'))
     assert.deepStrictEqual(result, expected)
   }
+
+  async '+ _cq_design_dialog.xml' () {
+    const expected = {
+      entries: [
+        'jcr_root/',
+        'jcr_root/aemsync.txt',
+        'jcr_root/apps/.content.xml@nt:folder',
+        'jcr_root/apps/myapp/.content.xml@nt:folder',
+        'jcr_root/apps/myapp/component/.content.xml@cq:Component',
+        'META-INF/',
+        'META-INF/vault/',
+        'META-INF/vault/config.xml',
+        'META-INF/vault/definition/',
+        'META-INF/vault/definition/.content.xml@vlt:PackageDefinition',
+        'META-INF/vault/filter.xml',
+        'META-INF/vault/nodetypes.cnd',
+        'META-INF/vault/properties.xml'
+      ],
+      filter: [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<workspaceFilter version="1.0">',
+        '<filter root="/apps/myapp/component/cq:design_dialog" />',
+        '',
+        '<filter root="/apps/myapp/component">',
+        '<exclude pattern="/apps/myapp/component/.*" />',
+        '<include pattern="/apps/myapp/component/.content" />',
+        '<include pattern="/apps/myapp/component/.content/.*" />',
+        '</filter>',
+        '',
+        '<filter root="/apps/myapp">',
+        '<exclude pattern="/apps/myapp/.*" />',
+        '<include pattern="/apps/myapp/.content" />',
+        '<include pattern="/apps/myapp/.content/.*" />',
+        '</filter>',
+        '',
+        '<filter root="/apps">',
+        '<exclude pattern="/apps/.*" />',
+        '<include pattern="/apps/.content" />',
+        '<include pattern="/apps/.content/.*" />',
+        '</filter>',
+        '</workspaceFilter>'
+      ]
+    }
+
+    const result = await this._push(path.join(COMPONENT, '_cq_design_dialog'))
+    assert.deepStrictEqual(result, expected)
+  }
 })
