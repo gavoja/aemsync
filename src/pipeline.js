@@ -127,9 +127,8 @@ class Pipeline {
 
   async _check (target) {
     try {
-      const res = await fetch(target + '/system/console/bundles.json')
-      const obj = await res.json()
-      return obj.s.length === 5 && obj.s[3] === 0 && obj.s[4] === 0
+      const res = await fetch(target)
+      return res.status === 200
     } catch (err) {
       log.debug(err.message)
       return false
