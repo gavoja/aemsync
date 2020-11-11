@@ -23,11 +23,11 @@
     "triala": "^0.3.0"
   },
   "dependencies": {
-    "adm-zip": "^0.4.14",
+    "adm-zip": "^0.4.16",
     "form-data": "^3.0.0",
     "globrex": "^0.1.2",
     "minimist": "^1.2.5",
-    "node-fetch": "^2.6.0",
+    "node-fetch": "^2.6.1",
     "simple-watcher": "^4.0.1",
     "xml-to-json-stream": "^1.1.0"
   },
