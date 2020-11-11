@@ -79,7 +79,7 @@ const onPushEnd = (err, target, log) => {
   if (err) {
     console.log(`Error when pushing package to ${target}.`, err.message)
   } else {
-    console.log(`Package pushed to ${target}. Response log:\n${target.log}`)
+    console.log(`Package pushed to ${target}. Response log:\n${log}`)
   }
 }
 const checkBeforePush = true
@@ -105,7 +105,7 @@ const onPushEnd = (err, target, log) => {
   if (err) {
     console.log(`Error when pushing package to ${target}.`, err.message)
   } else {
-    console.log(`Package pushed to ${target}. Response log:\n${target.log}`)
+    console.log(`Package pushed to ${target}. Response log:\n${log}`)
   }
 }
 const checkBeforePush = true
