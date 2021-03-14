@@ -94,8 +94,8 @@ function main () {
   log.info(`aemsync version ${version}
 
     Watch over: ${log.gray(workingDir)}
-       Targets: ${log.gray(targets.map((t, ii) => ii === 0 ? t : ''.padStart(16, ' ') + t).join('\n'))}
-       Exclude: ${log.gray(exclude.map((x, ii) => ii === 0 ? x : ''.padStart(16, ' ') + x).join('\n'))}
+       Targets: ${targets.map(t => log.gray(t)).join('\n'.padEnd(17, ' '))}
+       Exclude: ${exclude.map(x => log.gray(x)).join('\n'.padEnd(17, ' '))}
       Interval: ${log.gray(interval)}
   `)
 
