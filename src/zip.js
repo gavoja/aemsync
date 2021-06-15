@@ -7,6 +7,10 @@ const AdmZip = require('adm-zip')
 
 const DEFAULT_ARCHIVE_PATH = path.join(os.tmpdir(), 'aemsync.zip')
 
+class FileIsDirectoryError extends Error {
+
+}
+
 class Zip {
   constructor (archivePath) {
     this.zip = archivePath ? new AdmZip(archivePath) : new AdmZip()
@@ -48,24 +52,51 @@ class Zip {
 
     while (pipeline.length) {
       const current = pipeline.pop()
-      if (this._isFolder(current.localPath)) {
-        // Add folder.
-        entries.push({ localPath: current.localPath, zipPath: current.zipPath + '/', buffer: Buffer.alloc(0) })
 
-        // Walk down the tree.
-        for (const entityName of fs.readdirSync(current.localPath)) {
-          pipeline.push({
-            localPath: current.localPath + '/' + entityName,
-            zipPath: current.zipPath + '/' + entityName
-          })
+      while (true) {
+        if (this._isFolder(current.localPath)) {
+          // Add folder.
+          entries.push({ localPath: current.localPath, zipPath: current.zipPath + '/', buffer: Buffer.alloc(0) })
+
+          // Walk down the tree.
+          for (const entityName of fs.readdirSync(current.localPath)) {
+            pipeline.push({
+              localPath: current.localPath + '/' + entityName,
+              zipPath: current.zipPath + '/' + entityName
+            })
+          }
+        } else {
+          // Add file.
+          try {
+            entries.push({ ...current, buffer: this._readFileSync(current.localPath) });
+          } catch (e) {
+            if (!(e instanceof FileIsDirectoryError)) {
+              throw e;
+            }
+          }
         }
-      } else {
-        // Add file.
-        entries.push({ ...current, buffer: fs.readFileSync(current.localPath) })
+        break;
       }
     }
 
     return entries
+  }
+
+  _readFileSync(filePath) {
+    let retries = 100;
+    let lastError;
+    while (--retries >= 0) {
+      try {
+        return fs.readFileSync(filePath);
+      } catch (e) {
+        if (e.message.includes('EISDIR')) {
+          throw new FileIsDirectoryError;
+        }
+        console.log(`ERROR: ${e.message} -> PATH: ${filePath}. Retrying.....`);
+        lastError = e;
+      }
+    }
+    throw lastError;
   }
 
   _isFolder (filePath) {

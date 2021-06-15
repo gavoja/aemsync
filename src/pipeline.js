@@ -15,20 +15,27 @@ class Pipeline {
     this.checkBeforePush = opts.checkBeforePush || defaults.checkBeforePush
     this.packmgrPath = opts.packmgrPath || defaults.packmgrPath
     this.targets = opts.targets || defaults.target
-    this.interval = opts.interval || defaults.interval
+    this.intervalDelay = opts.intervalDelay || defaults.interval
     this.exclude = opts.exclude || defaults.exclude
     this.onPushEnd = opts.onPushEnd || function () {}
+    this.intervalID = 0;
   }
 
   start () {
-    setInterval(async () => {
+    this.intervalID = setInterval(async () => {
       await this._processQueue()
-    }, this.interval)
+    }, this.intervalDelay)
+  }
+
+  stop () {
+    clearInterval(this.intervalID);
   }
 
   enqueue (localPath) {
     log.debug(`Changed: ${localPath}`)
+    this.stop();
     this.queue.push(localPath)
+    this.start();
   }
 
   async push (pathToPush) {
