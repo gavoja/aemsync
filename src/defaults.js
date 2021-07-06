@@ -1,6 +1,4 @@
-'use strict'
-
-module.exports = {
+export default {
   workingDir: '.',
   exclude: ['**/jcr_root/*', '**/@(.git|.svn|.hg|target)', '**/@(.git|.svn|.hg|target)/**'],
   packmgrPath: '/crx/packmgr/service.jsp',

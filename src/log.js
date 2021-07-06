@@ -1,6 +1,7 @@
-'use strict'
 
-const Console = require('console').Console
+import console from 'console'
+
+const { Console } = console
 
 class Log extends Console {
   static getInstance () {
@@ -56,4 +57,4 @@ class Log extends Console {
   }
 }
 
-module.exports = Log.getInstance()
+export default Log.getInstance()

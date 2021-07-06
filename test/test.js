@@ -1,11 +1,11 @@
 'use strict'
 
-const test = require('triala')
-const path = require('path')
-const aemsync = require('../index')
-const assert = require('assert')
+import test from 'triala'
+import path from 'path'
+import assert from 'assert'
+import aemsync from '../index.js'
 
-const COMPONENT = path.resolve(__dirname, 'jcr_root/apps/myapp/component')
+const COMPONENT = path.resolve('./test/jcr_root/apps/myapp/component')
 const TARGET = 'http://admin:admin@localhost:1234'
 
 test('aemsync', class {

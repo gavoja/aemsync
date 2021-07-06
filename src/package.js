@@ -1,14 +1,14 @@
 'use strict'
 
-const util = require('util')
-const fs = require('fs')
-const path = require('path')
-const globrex = require('globrex')
-const log = require('./log')
-const defaults = require('./defaults')
-const Zip = require('./zip')
+import util from 'util'
+import fs from 'fs'
+import path from 'path'
+import globrex from 'globrex'
+import log from './log.js'
+import defaults from './defaults.js'
+import Zip from './zip.js'
 
-const DATA_PATH = path.resolve(__dirname, '..', 'data')
+const DATA_PATH = path.resolve('./data')
 const PACKAGE_CONTENT_PATH = path.join(DATA_PATH, 'package-content')
 const NT_FOLDER_PATH = path.join(DATA_PATH, 'nt-folder', '.content.xml')
 const FILTER_ZIP_PATH = 'META-INF/vault/filter.xml'
@@ -25,7 +25,7 @@ const FILTER_CHILDREN = `
   </filter>`
 
 // https://jackrabbit.apache.org/filevault/vaultfs.html
-class Package {
+export default class Package {
   constructor (exclude = defaults.exclude) {
     this.zip = new Zip()
     this.exclude = exclude || []
@@ -235,5 +235,3 @@ class Package {
       .replace(/\/_([^/^_]*)_([^/]*)$/g, '/$1:$2')
   }
 }
-
-module.exports = Package

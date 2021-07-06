@@ -1,13 +1,13 @@
 'use strict'
 
-const path = require('path')
-const os = require('os')
-const fs = require('fs')
-const AdmZip = require('adm-zip')
+import path from 'path'
+import os from 'os'
+import fs from 'fs'
+import AdmZip from 'adm-zip'
 
 const DEFAULT_ARCHIVE_PATH = path.join(os.tmpdir(), 'aemsync.zip')
 
-class Zip {
+export default class Zip {
   constructor (archivePath) {
     this.zip = archivePath ? new AdmZip(archivePath) : new AdmZip()
   }
@@ -105,5 +105,3 @@ class Zip {
     return this.zip.readAsText('META-INF/vault/filter.xml').split('\n').map(line => line.trim())
   }
 }
-
-module.exports = Zip

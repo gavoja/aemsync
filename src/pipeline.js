@@ -1,14 +1,14 @@
 'use strict'
 
-const fs = require('fs')
-const fetch = require('node-fetch')
-const FormData = require('form-data')
-const xmlToJson = require('xml-to-json-stream')
-const Package = require('./package')
-const log = require('./log')
-const defaults = require('./defaults')
+import fs from 'fs'
+import fetch from 'node-fetch'
+import FormData from 'form-data'
+import xmlToJson from 'xml-to-json-stream'
+import Package from './package.js'
+import log from './log.js'
+import defaults from './defaults.js'
 
-class Pipeline {
+export default class Pipeline {
   constructor (opts = {}) {
     this.lock = false
     this.queue = []
@@ -141,5 +141,3 @@ class Pipeline {
     })
   }
 }
-
-module.exports = Pipeline

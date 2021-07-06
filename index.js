@@ -1,13 +1,12 @@
-'use strict'
+import minimist from 'minimist'
+import path from 'path'
+import fs from 'fs'
+import watch from 'simple-watcher'
+import defaults from './src/defaults.js'
+import log from './src/log.js'
+import Pipeline from './src/pipeline.js'
 
-const minimist = require('minimist')
-const path = require('path')
-const fs = require('fs')
-const watch = require('simple-watcher')
-const defaults = require('./src/defaults')
-const log = require('./src/log')
-const Pipeline = require('./src/pipeline')
-const { version } = require('./package.json')
+const { version } = JSON.parse(fs.readFileSync('./package.json', 'utf8'))
 
 const MSG_HELP = `
 The code and content synchronization for Sling / AEM; version ${version}.
@@ -102,11 +101,13 @@ function main () {
   aemsync(workingDir, { targets, interval, exclude, packmgrPath, checkBeforePush })
 }
 
-if (require.main === module) {
+// Serve if run directly.
+if (path.normalize(import.meta.url) === path.normalize(`file://${process.argv[1]}`)) {
   main()
 }
 
 aemsync.Pipeline = Pipeline
 aemsync.main = main
 aemsync.push = push
-module.exports = aemsync
+
+export default aemsync
