@@ -1,9 +1,7 @@
-'use strict'
-
-import path from 'path'
-import os from 'os'
-import fs from 'fs'
 import AdmZip from 'adm-zip'
+import fs from 'fs'
+import os from 'os'
+import path from 'path'
 
 const DEFAULT_ARCHIVE_PATH = path.join(os.tmpdir(), 'aemsync.zip')
 
@@ -98,7 +96,7 @@ export default class Zip {
       }
     }
 
-    return entries
+    return entries.sort()
   }
 
   _getFilter () {

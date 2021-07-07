@@ -1,113 +1,301 @@
-import minimist from 'minimist'
-import path from 'path'
+import FormData from 'form-data'
 import fs from 'fs'
+import minimist from 'minimist'
+import fetch from 'node-fetch'
+import path from 'path'
 import watch from 'simple-watcher'
-import defaults from './src/defaults.js'
-import log from './src/log.js'
-import Pipeline from './src/pipeline.js'
+import xmlToJson from 'xml-to-json-stream'
+import Channel from './src/channel.js'
+import * as log from './src/log.js'
+import Package from './src/package.js'
+import ROOT from './src/root.js'
 
-const { version } = JSON.parse(fs.readFileSync('./package.json', 'utf8'))
+const VERSION = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version
 
-const MSG_HELP = `
-The code and content synchronization for Sling / AEM; version ${version}.
+console.log(VERSION)
+const DEFAULTS = {
+  checkIfUp: false,
+  delay: 200,
+  exclude: ['**/jcr_root/*', '**/@(.git|.svn|.hg|target)', '**/@(.git|.svn|.hg|target)/**'],
+  packmgrPath: '/crx/packmgr/service.jsp',
+  postHandler: post,
+  targets: ['http://admin:admin@localhost:4502'],
+  verbose: false,
+  workingDir: '.'
+}
+
+const HELP = `
+The code and content synchronization for Sling / AEM; version ${VERSION}.
 
 Usage:
   aemsync [OPTIONS]
 
 Options:
   -t <target>           URL to AEM instance; multiple can be set.
-                        Default: ${defaults.targets}
+                        Default: ${DEFAULTS.targets}
   -w <path_to_watch>    Watch over folder.
-                        Default: CWD
+                        Default: ${DEFAULTS.workingDir}
   -p <path_to_push>     Push specific file or folder.
   -e <exclude_filter>   Extended glob filter; multiple can be set.
                         Default:
                           **/jcr_root/*
                           **/@(.git|.svn|.hg|target)
                           **/@(.git|.svn|.hg|target)/**
-  -i <sync_interval>    Update interval.
-                        Default: ${defaults.interval} ms
-  -u <packmgr_path>     Package manager path.
-                        Default: ${defaults.packmgrPath}
+  -d <delay>            Time to wait since the last change before push.
+                        Default: ${DEFAULTS.interval} ms
+  -q <packmgr_path>     Package manager path.
+                        Default: ${DEFAULTS.packmgrPath}
   -c                    Check if AEM is up and running before pushing.
-  -d                    Enable debug mode.
+  -v                    Enable verbose mode.
   -h                    Display this screen.
+
+Examples:
+  Magic:
+    > aemsync
+  Custom targets:
+    > aemsync -t http://admin:admin@localhost:4502 -t http://admin:admin@localhost:4503 -w ~/workspace/my_project
+  Custom exclude rules:
+    > aemsync -e **/*.orig -e **/test -e -e **/test/**
+  Just push, don't watch:
+    > aemsync -p /foo/bar/my-workspace/jcr_content/apps/my-app/components/my-component
 
 Website:
   https://github.com/gavoja/aemsync
 `
 
-function aemsync (workingDir, { targets, interval, exclude, packmgrPath, onPushEnd, checkBeforePush }) {
-  const pipeline = new Pipeline({ targets, interval, exclude, packmgrPath, onPushEnd, checkBeforePush })
+// =============================================================================
+// Posting to AEM.
+// =============================================================================
 
-  pipeline.start()
-  watch(workingDir, localPath => {
-    pipeline.enqueue(localPath)
+async function post ({ archivePath, target, packmgrPath, checkIfUp }) {
+  const url = target + packmgrPath
+  const form = new FormData()
+  form.append('file', fs.createReadStream(archivePath))
+  form.append('force', 'true')
+  form.append('install', 'true')
+
+  // Check if AEM is up and runnig.
+  if (checkIfUp && !await check(target)) {
+    return { target, err: new Error('AEM not ready') }
+  }
+
+  const result = { target }
+  try {
+    const res = await fetch(url, { method: 'POST', body: form })
+
+    if (res.ok) {
+      const text = await res.text()
+
+      // Handle errors with AEM response.
+      try {
+        const obj = await parseXml(text)
+        result.log = obj.crx.response.data.log
+        const errorLines = [...new Set(result.log.split('\n').filter(line => line.startsWith('E')))]
+
+        // Errors when installing selected nodes.
+        if (errorLines.length) {
+          result.err = new Error('Error installing nodes:\n' + errorLines.join('\n'))
+        // Error code in status.
+        } else if (obj.crx.response.status.code !== '200') {
+          result.err = new Error(obj.crx.response.status.textNode)
+        }
+      } catch (err) {
+        // Unexpected response format.
+        throw new Error('Unexpected response text format')
+      }
+    } else {
+      // Handle errors with the failed request.
+      result.err = new Error(res.statusText)
+    }
+  } catch (err) {
+    // Handle unexpeted errors.
+    result.err = err
+  }
+
+  return result
+}
+
+async function check (target) {
+  try {
+    const res = await fetch(target)
+    return res.status === 200
+  } catch (err) {
+    log.debug(err.message)
+    return false
+  }
+}
+
+function parseXml (xml) {
+  return new Promise(resolve => {
+    xmlToJson().xmlToJson(xml, (err, json) => err ? resolve({}) : resolve(json))
   })
 }
 
-async function push (pathToPush, { targets, exclude, packmgrPath, checkBeforePush }) {
-  const pipeline = new Pipeline({ targets, exclude, packmgrPath, checkBeforePush })
-  return pipeline.push(pathToPush)
+// =============================================================================
+// Main API.
+// =============================================================================
+
+async function wait (ms) {
+  return new Promise(resolve => setTimeout(resolve, ms))
 }
 
-function main () {
-  const args = minimist(process.argv.slice(2))
+export async function * push (args) {
+  const { payload, exclude, targets, packmgrPath, checkIfUp, postHandler, delay, breakStuff } = { ...DEFAULTS, ...args }
+
+  // Get archive as many times as necessary.
+  let archive
+  while (true) {
+    const pack = new Package(exclude)
+    for (const localPath of payload) {
+      const item = pack.add(localPath)
+      item && log.info(item.exists ? '+' : '-', item.zipPath)
+    }
+
+    // Ability to break stuff when testing.
+    // This is to simulate changes between change reported and archive creation.
+    breakStuff && await breakStuff()
+
+    archive = pack.save()
+    if (archive.err) {
+      log.debug(archive.err)
+      await wait(delay)
+      log.info('Failed to create ZIP, retrying...')
+    } else {
+      break
+    }
+  }
+
+  // Archive may not be created if items added are on the exclude path.
+  if (archive.path) {
+    for (const target of targets) {
+      const response = await postHandler({ archivePath: archive.path, target, packmgrPath, checkIfUp })
+      log.info(log.gray(`${response.target} > ${response.err ? response.err.message : 'OK'}`))
+      yield { archive, response }
+    }
+  } else {
+    yield {}
+  }
+}
+
+export async function * aemsync (args) {
+  const { workingDir, delay } = { ...DEFAULTS, ...args }
+  const channel = new Channel()
+  const payload = []
+  let timeoutId
+
+  // Process file changes in the background.
+  ;(async function () {
+    for await (const localPath of watch(workingDir)) {
+      payload.push(localPath)
+
+      // Graceful handling of bulk changes.
+      // Process only after a certain amount of time passes since the last change.
+      clearTimeout(timeoutId)
+      timeoutId = setTimeout(async () => {
+        // Make sure only current batch of payload is processed.
+        const batch = payload.splice(0, payload.length)
+
+        for await (const result of push({ ...args, payload: batch })) {
+          channel.put(result)
+        }
+      }, delay)
+    }
+  })()
+
+  // Yield results via channel.
+  while (true) {
+    yield await channel.take()
+  }
+}
+
+// =============================================================================
+// CLI handling.
+// =============================================================================
+
+function debugResult (result) {
+  log.debug('Package contents:')
+  log.group()
+  log.debug(JSON.stringify(result?.archive?.contents, null, 2))
+  log.groupEnd()
+  log.debug('Response log:')
+  log.group()
+  log.debug(result?.response?.log)
+  log.groupEnd()
+}
+
+function getArgs () {
+  const args = minimist(process.argv.slice(2), {
+    default: {
+      w: DEFAULTS.workingDir,
+      t: DEFAULTS.targets,
+      e: DEFAULTS.exclude,
+      d: DEFAULTS.delay,
+      c: DEFAULTS.checkIfUp,
+      q: DEFAULTS.packmgrPath,
+      v: DEFAULTS.verbose
+    }
+  })
+
+  return {
+    payload: args.p ? path.resolve(args.p) : null,
+    workingDir: path.resolve(args.w),
+    targets: Array.isArray(args.t) ? args.t : [args.t],
+    exclude: Array.isArray(args.e) ? args.e : [args.e],
+    delay: args.d,
+    checkIfUp: args.c,
+    packmgrPath: args.q,
+    help: args.h,
+    verbose: args.v
+  }
+}
+
+async function main () {
+  const args = getArgs()
 
   // Show help.
-  if (args.h) {
-    return log.info(MSG_HELP)
+  if (args.help) {
+    log.info(HELP)
+    return
   }
 
   // Print additional debug information.
-  args.d && log.enableDebug()
-
-  // Get the args.
-  const pathToPush = args.p ? path.resolve(args.p) : null
-  const workingDir = path.resolve(args.w || defaults.workingDir)
-  const targets = args.t ? (typeof args.t === 'string' ? [args.t] : args.t) : defaults.targets
-  const exclude = args.e ? (typeof args.e === 'string' ? [args.e] : args.e) : defaults.exclude
-  const interval = args.i || defaults.interval
-  const checkBeforePush = args.c
-  const packmgrPath = args.u || defaults.packmgrPath
+  args.verbose && log.enableDebug()
 
   //
   // Just the push.
   //
 
-  if (pathToPush) {
-    // Path to push does not have to exist.
-    // Non-existing path can be used for deletion.
-    return push(pathToPush, { targets })
+  // Path to push does not have to exist.
+  // Non-existing path can be used for deletion.
+  if (args.payload) {
+    for await (const result of push(args)) {
+      debugResult(result)
+    }
   }
 
   //
   // Watch mode.
   //
 
-  if (!fs.existsSync(workingDir)) {
-    return log.info('Invalid path:', log.gray(workingDir))
+  if (!fs.existsSync(args.workingDir)) {
+    log.info('Invalid path:', log.gray(args.workingDir))
+    return
   }
 
-  // Start aemsync
-  log.info(`aemsync version ${version}
+  // Start aemsync.
+  log.info(`aemsync version ${VERSION}
 
-    Watch over: ${log.gray(workingDir)}
-       Targets: ${targets.map(t => log.gray(t)).join('\n'.padEnd(17, ' '))}
-       Exclude: ${exclude.map(x => log.gray(x)).join('\n'.padEnd(17, ' '))}
-      Interval: ${log.gray(interval)}
+    Watch over: ${log.gray(args.workingDir)}
+       Targets: ${args.targets.map(t => log.gray(t)).join('\n'.padEnd(17, ' '))}
+       Exclude: ${args.exclude.map(x => log.gray(x)).join('\n'.padEnd(17, ' '))}
+         Delay: ${log.gray(args.delay)}
   `)
 
-  aemsync(workingDir, { targets, interval, exclude, packmgrPath, checkBeforePush })
+  for await (const result of aemsync(args)) {
+    debugResult(result)
+  }
 }
 
-// Serve if run directly.
 if (path.normalize(import.meta.url) === path.normalize(`file://${process.argv[1]}`)) {
   main()
 }
-
-aemsync.Pipeline = Pipeline
-aemsync.main = main
-aemsync.push = push
-
-export default aemsync
