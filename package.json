@@ -27,7 +27,7 @@
     "form-data": "^4.0.0",
     "globrex": "^0.1.2",
     "minimist": "^1.2.5",
-    "node-fetch": "^2.6.1",
+    "node-fetch": "^3.1.1",
     "simple-watcher": "^4.0.2",
     "xml-to-json-stream": "^1.1.0"
   },
