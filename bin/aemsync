@@ -1,3 +1,0 @@
-#!/usr/bin/env node
-const aemsync = require('../index')
-aemsync.main()

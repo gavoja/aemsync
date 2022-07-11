@@ -34,7 +34,7 @@ Options:
   -t <target>           URL to AEM instance; multiple can be set.
                         Default: http://admin:admin@localhost:4502
   -w <path_to_watch>    Watch over folder.
-                        Default: .
+                        Default: '.'
   -p <path_to_push>     Push specific file or folder.
   -e <exclude_filter>   Extended glob filter; multiple can be set.
                         Default:
@@ -42,7 +42,7 @@ Options:
                           **/@(.git|.svn|.hg|target)
                           **/@(.git|.svn|.hg|target)/**
   -d <delay>            Time to wait since the last change before push.
-                        Default: undefined ms
+                        Default: 300 ms
   -q <packmgr_path>     Package manager path.
                         Default: /crx/packmgr/service.jsp
   -c                    Check if AEM is up and running before pushing.
@@ -58,9 +58,6 @@ Examples:
     > aemsync -e **/*.orig -e **/test -e -e **/test/**
   Just push, don't watch:
     > aemsync -p /foo/bar/my-workspace/jcr_content/apps/my-app/components/my-component
-
-Website:
-  https://github.com/gavoja/aemsync
 ```
 
 JavaScript API
@@ -68,7 +65,7 @@ JavaScript API
 import { aemsync, push } from 'aemsync'
 
 // Interactive watch example.
-(async () => {
+(async function () {
   const args = { workingDir }
 
   for await (const result of aemsync(args)) {
@@ -77,7 +74,7 @@ import { aemsync, push } from 'aemsync'
 })()
 
 // Push example.
-(async () => {
+(async function () {
   const args = { payload: [
     './foo/bar/my-workspace/jcr_content/apps/my-app/components/my-component',
     './foo/bar/my-workspace/jcr_content/apps/my-app/components/something-else'
@@ -97,7 +94,7 @@ const args = {
   exclude: ['**/jcr_root/*', '**/@(.git|.svn|.hg|target)', '**/@(.git|.svn|.hg|target)/**'],
   packmgrPath: '/crx/packmgr/service.jsp',
   targets: ['http://admin:admin@localhost:4501'],
-  delay: 200,
+  delay: 300,
   checkIfUp: false
 }
 ```
@@ -111,7 +108,7 @@ Any changes inside `jcr_root` folders are detected and deployed to AEM instance(
 * Any paths containing `.svn`, `.git`, `.hg` or `target` are ignored.
 * The exclude filter can be overriden. Do note that this will remove the above rules completely and if required, they must be added manually.
 
-Delay is the time to wait to pass since the last change before the package is created. In case of bulk changes (e.g. switching between code branches), creating a new package per file should be avoided and instead, all changes should be pushed in one go. Lowering the value decreases the delay for a single file change but may increase the delay for multiple file changes. If you are unsure, please leave the default.
+Delai is the time to wait to pass since the last change before the package is created. In case of bulk changes (e.g. switching between code branches), creating a new package per file should be avoided and instead, all changes should be pushed in one go. Lowering the value decreases the delay for a single file change but may increase the delay for multiple file changes. If you are unsure, please leave the default.
 
 ### Caveats
 

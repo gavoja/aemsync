@@ -4,10 +4,8 @@ import path from 'path'
 import util from 'util'
 import * as log from './log.js'
 import Zip from './zip.js'
-import ROOT from './root.js'
 
-// Get current script's directory.
-const DATA_PATH = path.resolve(ROOT, 'data')
+const DATA_PATH = path.resolve('./data')
 const PACKAGE_CONTENT_PATH = path.join(DATA_PATH, 'package-content')
 const NT_FOLDER_PATH = path.join(DATA_PATH, 'nt-folder', '.content.xml')
 const FILTER_ZIP_PATH = 'META-INF/vault/filter.xml'

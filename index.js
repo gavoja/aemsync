@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import FormData from 'form-data'
 import fs from 'fs'
 import minimist from 'minimist'
@@ -8,20 +9,17 @@ import xmlToJson from 'xml-to-json-stream'
 import Channel from './src/channel.js'
 import * as log from './src/log.js'
 import Package from './src/package.js'
-import ROOT from './src/root.js'
 
-const VERSION = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version
-
-console.log(VERSION)
+const VERSION = JSON.parse(fs.readFileSync('./package.json', 'utf8')).version
 const DEFAULTS = {
-  checkIfUp: false,
-  delay: 200,
+  workingDir: '.',
   exclude: ['**/jcr_root/*', '**/@(.git|.svn|.hg|target)', '**/@(.git|.svn|.hg|target)/**'],
   packmgrPath: '/crx/packmgr/service.jsp',
-  postHandler: post,
   targets: ['http://admin:admin@localhost:4502'],
-  verbose: false,
-  workingDir: '.'
+  delay: 300,
+  checkIfUp: false,
+  postHandler: post,
+  verbose: false
 }
 
 const HELP = `
@@ -140,7 +138,7 @@ async function wait (ms) {
 }
 
 export async function * push (args) {
-  const { payload, exclude, targets, packmgrPath, checkIfUp, postHandler, delay, breakStuff } = { ...DEFAULTS, ...args }
+  const { payload, exclude, targets, packmgrPath, checkIfUp, postHandler, breakStuff } = { ...DEFAULTS, ...args }
 
   // Get archive as many times as necessary.
   let archive
@@ -158,7 +156,7 @@ export async function * push (args) {
     archive = pack.save()
     if (archive.err) {
       log.debug(archive.err)
-      await wait(delay)
+      await wait(100)
       log.info('Failed to create ZIP, retrying...')
     } else {
       break
@@ -249,7 +247,7 @@ function getArgs () {
   }
 }
 
-async function main () {
+export async function main () {
   const args = getArgs()
 
   // Show help.
