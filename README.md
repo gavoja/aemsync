@@ -108,7 +108,7 @@ Any changes inside `jcr_root` folders are detected and deployed to AEM instance(
 * Any paths containing `.svn`, `.git`, `.hg` or `target` are ignored.
 * The exclude filter can be overriden. Do note that this will remove the above rules completely and if required, they must be added manually.
 
-Delai is the time to wait to pass since the last change before the package is created. In case of bulk changes (e.g. switching between code branches), creating a new package per file should be avoided and instead, all changes should be pushed in one go. Lowering the value decreases the delay for a single file change but may increase the delay for multiple file changes. If you are unsure, please leave the default.
+Delay is the time to wait to pass since the last change before the package is created. In case of bulk changes (e.g. switching between code branches), creating a new package per file should be avoided and instead, all changes should be pushed in one go. Lowering the value decreases the delay for a single file change but may increase the delay for multiple file changes. If you are unsure, please leave the default.
 
 ### Caveats
 
