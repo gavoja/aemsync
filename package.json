@@ -1,8 +1,9 @@
 {
   "name": "aemsync",
-  "version": "4.0.3",
+  "version": "5.0.0",
   "description": "The code and content synchronization for Sling / AEM (Adobe Experience Manager).",
   "author": "Michal Kochel <gavoja@gmail.com>",
+  "type": "module",
   "keywords": [
     "Adobe",
     "AEM",
@@ -20,22 +21,26 @@
   },
   "main": "index.js",
   "devDependencies": {
-    "triala": "^0.3.0"
+    "standard": "17.0.0",
+    "triala": "0.4.0"
   },
   "dependencies": {
-    "adm-zip": "^0.5.4",
-    "form-data": "^4.0.0",
-    "globrex": "^0.1.2",
-    "minimist": "^1.2.5",
-    "node-fetch": "^2.6.1",
-    "simple-watcher": "^4.0.2",
-    "xml-to-json-stream": "^1.1.0"
+    "adm-zip": "0.5.9",
+    "form-data": "4.0.0",
+    "globrex": "0.1.2",
+    "minimist": "1.2.6",
+    "node-fetch": "3.2.6",
+    "simple-watcher": "5.0.1",
+    "xml-to-json-stream": "1.1.0"
   },
   "scripts": {
     "test": "node test/test.js -v"
   },
+  "engines": {
+    "node": ">=16.16.0"
+  },
   "bin": {
-    "aemsync": "./bin/aemsync"
+    "aemsync": "./bin/aemsync.js"
   },
   "license": "MIT",
   "false": {}

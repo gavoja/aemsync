@@ -1,75 +1,55 @@
 'use strict'
 
-const test = require('triala')
-const path = require('path')
-const aemsync = require('../index')
-const assert = require('assert')
+import assert from 'assert'
+import path from 'path'
+import test from 'triala'
+import fs from 'fs'
+import { push } from '../index.js'
 
-const COMPONENT = path.resolve(__dirname, 'jcr_root/apps/myapp/component')
-const TARGET = 'http://admin:admin@localhost:1234'
+const COMPONENT = path.resolve('./test/jcr_root/apps/myapp/component')
 
 test('aemsync', class {
-  async _before () {
-    this.pipeline = new aemsync.Pipeline({ targets: [TARGET] })
-  }
+  // Push wrapper with overloaded POST handler.
+  async _push (entry, breakStuff) {
+    const payload = [entry]
+    const args = { payload, breakStuff, postHandler: () => ({ target: 'http://test.local' }) }
+    const results = []
+    for await (const result of push(args)) {
+      results.push(result)
+    }
 
-  async _push (pathToPush) {
-    const pack = await this.pipeline.push(pathToPush)
-    return pack.zip.inspect()
+    return results.shift()?.archive?.contents
   }
 
   //
   // Test cases start here.
   //
 
-  async 'onPushEnd failure' () {
-    const msg = 'Something went wrong'
-    this.pipeline._post = (archivePath, target) => ({ err: new Error(msg), target })
-
-    let error = null
-    this.pipeline.onPushEnd = (err, target, log) => (error = err)
-
-    await this.pipeline.push(COMPONENT)
-
-    // Reset for the rest of the tests.
-    this.pipeline.onPushEnd = () => {}
-    this.pipeline._post = (archivePath, target) => ({ target })
-
-    // Check if error message matches.
-    assert.strictEqual(error.message, msg)
-  }
-
   async 'exclude' () {
-    const expected = { entries: [], filter: [''] }
+    const expected = undefined
 
-    assert.deepStrictEqual(await this._push(path.join('jcr_root')), expected)
-    assert.deepStrictEqual(await this._push(path.join('jcr_root', 'bar')), expected)
-    assert.deepStrictEqual(await this._push(path.join('foo', 'jcr_root')), expected)
-    assert.deepStrictEqual(await this._push(path.join('foo', 'jcr_root', 'bar')), expected)
-    assert.deepStrictEqual(await this._push(path.join('.svn')), expected)
-    assert.deepStrictEqual(await this._push(path.join('.hg')), expected)
-    assert.deepStrictEqual(await this._push(path.join('.git')), expected)
-    assert.deepStrictEqual(await this._push(path.join('target')), expected)
-    assert.deepStrictEqual(await this._push(path.join('foo', '.svn')), expected)
-    assert.deepStrictEqual(await this._push(path.join('foo', '.hg')), expected)
-    assert.deepStrictEqual(await this._push(path.join('foo', '.git')), expected)
-    assert.deepStrictEqual(await this._push(path.join('foo', 'target')), expected)
-    assert.deepStrictEqual(await this._push(path.join('foo', '.svn', 'bar')), expected)
-    assert.deepStrictEqual(await this._push(path.join('foo', '.hg', 'bar')), expected)
-    assert.deepStrictEqual(await this._push(path.join('foo', '.git', 'bar')), expected)
-    assert.deepStrictEqual(await this._push(path.join('foo', 'target', 'bar')), expected)
-    assert.ok((await this._push(path.join('foo', 'jcr_root', 'bar', 'baz'))).entries.length > 0)
+    assert.deepStrictEqual(await this._push('jcr_root'), expected)
+    assert.deepStrictEqual(await this._push('jcr_root/bar'), expected)
+    assert.deepStrictEqual(await this._push('foo/jcr_root'), expected)
+    assert.deepStrictEqual(await this._push('foo/jcr_root/bar'), expected)
+    assert.deepStrictEqual(await this._push('.svn'), expected)
+    assert.deepStrictEqual(await this._push('.hg'), expected)
+    assert.deepStrictEqual(await this._push('.git'), expected)
+    assert.deepStrictEqual(await this._push('target'), expected)
+    assert.deepStrictEqual(await this._push('foo/.svn'), expected)
+    assert.deepStrictEqual(await this._push('foo/.hg'), expected)
+    assert.deepStrictEqual(await this._push('foo/.git'), expected)
+    assert.deepStrictEqual(await this._push('foo/target'), expected)
+    assert.deepStrictEqual(await this._push('foo/.svn/bar'), expected)
+    assert.deepStrictEqual(await this._push('foo/.hg/bar'), expected)
+    assert.deepStrictEqual(await this._push('foo/.git/bar'), expected)
+    assert.deepStrictEqual(await this._push('foo/target/bar'), expected)
+    assert.ok((await this._push('foo/jcr_root/bar/baz')).entries)
   }
 
   async '+ file.txt' () {
     const expected = {
       entries: [
-        'jcr_root/',
-        'jcr_root/aemsync.txt',
-        'jcr_root/apps/.content.xml@nt:folder',
-        'jcr_root/apps/myapp/.content.xml@nt:folder',
-        'jcr_root/apps/myapp/component/.content.xml@cq:Component',
-        'jcr_root/apps/myapp/component/file.txt',
         'META-INF/',
         'META-INF/vault/',
         'META-INF/vault/config.xml',
@@ -77,7 +57,13 @@ test('aemsync', class {
         'META-INF/vault/definition/.content.xml@vlt:PackageDefinition',
         'META-INF/vault/filter.xml',
         'META-INF/vault/nodetypes.cnd',
-        'META-INF/vault/properties.xml'
+        'META-INF/vault/properties.xml',
+        'jcr_root/',
+        'jcr_root/aemsync.txt',
+        'jcr_root/apps/.content.xml@nt:folder',
+        'jcr_root/apps/myapp/.content.xml@nt:folder',
+        'jcr_root/apps/myapp/component/.content.xml@cq:Component',
+        'jcr_root/apps/myapp/component/file.txt'
       ],
       filter: [
         '<?xml version="1.0" encoding="UTF-8"?>',
@@ -109,18 +95,13 @@ test('aemsync', class {
       ]
     }
 
-    const result = await this._push(path.join(COMPONENT, 'file.txt'))
+    const result = await this._push(`${COMPONENT}/file.txt`)
     assert.deepStrictEqual(result, expected)
   }
 
   async '+ folder' () {
     const expected = {
       entries: [
-        'jcr_root/',
-        'jcr_root/aemsync.txt',
-        'jcr_root/apps/.content.xml@nt:folder',
-        'jcr_root/apps/myapp/.content.xml@nt:folder',
-        'jcr_root/apps/myapp/component/.content.xml@cq:Component',
         'META-INF/',
         'META-INF/vault/',
         'META-INF/vault/config.xml',
@@ -128,7 +109,12 @@ test('aemsync', class {
         'META-INF/vault/definition/.content.xml@vlt:PackageDefinition',
         'META-INF/vault/filter.xml',
         'META-INF/vault/nodetypes.cnd',
-        'META-INF/vault/properties.xml'
+        'META-INF/vault/properties.xml',
+        'jcr_root/',
+        'jcr_root/aemsync.txt',
+        'jcr_root/apps/.content.xml@nt:folder',
+        'jcr_root/apps/myapp/.content.xml@nt:folder',
+        'jcr_root/apps/myapp/component/.content.xml@cq:Component'
       ],
       filter: [
         '<?xml version="1.0" encoding="UTF-8"?>',
@@ -156,18 +142,13 @@ test('aemsync', class {
       ]
     }
 
-    const result = await this._push(path.join(COMPONENT, 'folder'))
+    const result = await this._push(`${COMPONENT}/folder`)
     assert.deepStrictEqual(result, expected)
   }
 
   async '+ sub-folder' () {
     const expected = {
       entries: [
-        'jcr_root/',
-        'jcr_root/aemsync.txt',
-        'jcr_root/apps/.content.xml@nt:folder',
-        'jcr_root/apps/myapp/.content.xml@nt:folder',
-        'jcr_root/apps/myapp/component/.content.xml@cq:Component',
         'META-INF/',
         'META-INF/vault/',
         'META-INF/vault/config.xml',
@@ -175,7 +156,12 @@ test('aemsync', class {
         'META-INF/vault/definition/.content.xml@vlt:PackageDefinition',
         'META-INF/vault/filter.xml',
         'META-INF/vault/nodetypes.cnd',
-        'META-INF/vault/properties.xml'
+        'META-INF/vault/properties.xml',
+        'jcr_root/',
+        'jcr_root/aemsync.txt',
+        'jcr_root/apps/.content.xml@nt:folder',
+        'jcr_root/apps/myapp/.content.xml@nt:folder',
+        'jcr_root/apps/myapp/component/.content.xml@cq:Component'
       ],
       filter: [
         '<?xml version="1.0" encoding="UTF-8"?>',
@@ -203,19 +189,28 @@ test('aemsync', class {
       ]
     }
 
-    const result = await this._push(path.join(COMPONENT, 'folder', 'sub-folder'))
+    const result = await this._push(`${COMPONENT}/folder/sub-folder`)
     assert.deepStrictEqual(result, expected)
   }
 
-  async '+ component, + file.xml, + .content.xml, + file-node.xml, - deleted.xml' () {
+  async '+ component, + file.xml, + .content.xml, + file-node.xml, + cq_design_dialog.xml, - deleted.xml' () {
     const expected = {
       entries: [
+        'META-INF/',
+        'META-INF/vault/',
+        'META-INF/vault/config.xml',
+        'META-INF/vault/definition/',
+        'META-INF/vault/definition/.content.xml@vlt:PackageDefinition',
+        'META-INF/vault/filter.xml',
+        'META-INF/vault/nodetypes.cnd',
+        'META-INF/vault/properties.xml',
         'jcr_root/',
         'jcr_root/aemsync.txt',
         'jcr_root/apps/.content.xml@nt:folder',
         'jcr_root/apps/myapp/.content.xml@nt:folder',
         'jcr_root/apps/myapp/component/',
         'jcr_root/apps/myapp/component/.content.xml@cq:Component',
+        'jcr_root/apps/myapp/component/_cq_design_dialog.xml',
         'jcr_root/apps/myapp/component/_jcr_content/',
         'jcr_root/apps/myapp/component/_jcr_content/.content.xml@cq:PageContent',
         'jcr_root/apps/myapp/component/_jcr_content/file-node.xml',
@@ -232,15 +227,7 @@ test('aemsync', class {
         'jcr_root/apps/myapp/component/folder-node-nested/foo/bar/baz/.content.xml@nt:unstructured',
         'jcr_root/apps/myapp/component/folder-node-nested/foo/bar/baz/file-node.xml',
         'jcr_root/apps/myapp/component/folder-node/',
-        'jcr_root/apps/myapp/component/folder-node/.content.xml@nt:unstructured',
-        'META-INF/',
-        'META-INF/vault/',
-        'META-INF/vault/config.xml',
-        'META-INF/vault/definition/',
-        'META-INF/vault/definition/.content.xml@vlt:PackageDefinition',
-        'META-INF/vault/filter.xml',
-        'META-INF/vault/nodetypes.cnd',
-        'META-INF/vault/properties.xml'
+        'jcr_root/apps/myapp/component/folder-node/.content.xml@nt:unstructured'
       ],
       filter: [
         '<?xml version="1.0" encoding="UTF-8"?>',
@@ -272,32 +259,28 @@ test('aemsync', class {
       ]
     }
 
-    let result = await this._push(path.join(COMPONENT))
+    let result = await this._push(COMPONENT)
     assert.deepStrictEqual(result, expected)
 
-    result = await this._push(path.join(COMPONENT, 'file.xml'))
+    result = await this._push(`${COMPONENT}/file.xml`)
     assert.deepStrictEqual(result, expected)
 
-    result = await this._push(path.join(COMPONENT, '.content.xml'))
+    result = await this._push(`${COMPONENT}/content.xml`)
     assert.deepStrictEqual(result, expected)
 
-    result = await this._push(path.join(COMPONENT, 'file-node.xml'))
+    result = await this._push(`${COMPONENT}/file-node.xml`)
     assert.deepStrictEqual(result, expected)
 
-    result = await this._push(path.join(COMPONENT, 'deleted.xml'))
+    result = await this._push(`${COMPONENT}/_cq_design_dialog.xml`)
+    assert.deepStrictEqual(result, expected)
+
+    result = await this._push(`${COMPONENT}/deleted.xml`)
     assert.deepStrictEqual(result, expected)
   }
 
   async '+ folder-node, + folder-node/.content.xml' () {
     const expected = {
       entries: [
-        'jcr_root/',
-        'jcr_root/aemsync.txt',
-        'jcr_root/apps/.content.xml@nt:folder',
-        'jcr_root/apps/myapp/.content.xml@nt:folder',
-        'jcr_root/apps/myapp/component/.content.xml@cq:Component',
-        'jcr_root/apps/myapp/component/folder-node/',
-        'jcr_root/apps/myapp/component/folder-node/.content.xml@nt:unstructured',
         'META-INF/',
         'META-INF/vault/',
         'META-INF/vault/config.xml',
@@ -305,7 +288,14 @@ test('aemsync', class {
         'META-INF/vault/definition/.content.xml@vlt:PackageDefinition',
         'META-INF/vault/filter.xml',
         'META-INF/vault/nodetypes.cnd',
-        'META-INF/vault/properties.xml'
+        'META-INF/vault/properties.xml',
+        'jcr_root/',
+        'jcr_root/aemsync.txt',
+        'jcr_root/apps/.content.xml@nt:folder',
+        'jcr_root/apps/myapp/.content.xml@nt:folder',
+        'jcr_root/apps/myapp/component/.content.xml@cq:Component',
+        'jcr_root/apps/myapp/component/folder-node/',
+        'jcr_root/apps/myapp/component/folder-node/.content.xml@nt:unstructured'
       ],
       filter: [
         '<?xml version="1.0" encoding="UTF-8"?>',
@@ -343,16 +333,24 @@ test('aemsync', class {
       ]
     }
 
-    let result = await this._push(path.join(COMPONENT, 'folder-node'))
+    let result = await this._push(`${COMPONENT}/folder-node`)
     assert.deepStrictEqual(result, expected)
 
-    result = await this._push(path.join(COMPONENT, 'folder-node', '.content.xml'))
+    result = await this._push(`${COMPONENT}/folder-node/.content.xml`)
     assert.deepStrictEqual(result, expected)
   }
 
   async '+ folder-node-nested' () {
     const expected = {
       entries: [
+        'META-INF/',
+        'META-INF/vault/',
+        'META-INF/vault/config.xml',
+        'META-INF/vault/definition/',
+        'META-INF/vault/definition/.content.xml@vlt:PackageDefinition',
+        'META-INF/vault/filter.xml',
+        'META-INF/vault/nodetypes.cnd',
+        'META-INF/vault/properties.xml',
         'jcr_root/',
         'jcr_root/aemsync.txt',
         'jcr_root/apps/.content.xml@nt:folder',
@@ -366,15 +364,7 @@ test('aemsync', class {
         'jcr_root/apps/myapp/component/folder-node-nested/foo/bar/.content.xml@nt:unstructured',
         'jcr_root/apps/myapp/component/folder-node-nested/foo/bar/baz/',
         'jcr_root/apps/myapp/component/folder-node-nested/foo/bar/baz/.content.xml@nt:unstructured',
-        'jcr_root/apps/myapp/component/folder-node-nested/foo/bar/baz/file-node.xml',
-        'META-INF/',
-        'META-INF/vault/',
-        'META-INF/vault/config.xml',
-        'META-INF/vault/definition/',
-        'META-INF/vault/definition/.content.xml@vlt:PackageDefinition',
-        'META-INF/vault/filter.xml',
-        'META-INF/vault/nodetypes.cnd',
-        'META-INF/vault/properties.xml'
+        'jcr_root/apps/myapp/component/folder-node-nested/foo/bar/baz/file-node.xml'
       ],
       filter: [
         '<?xml version="1.0" encoding="UTF-8"?>',
@@ -412,13 +402,21 @@ test('aemsync', class {
       ]
     }
 
-    const result = await this._push(path.join(COMPONENT, 'folder-node-nested'))
+    const result = await this._push(`${COMPONENT}/folder-node-nested`)
     assert.deepStrictEqual(result, expected)
   }
 
   async '+ folder-node-nested/foo/bar/baz/file-node.xml' () {
     const expected = {
       entries: [
+        'META-INF/',
+        'META-INF/vault/',
+        'META-INF/vault/config.xml',
+        'META-INF/vault/definition/',
+        'META-INF/vault/definition/.content.xml@vlt:PackageDefinition',
+        'META-INF/vault/filter.xml',
+        'META-INF/vault/nodetypes.cnd',
+        'META-INF/vault/properties.xml',
         'jcr_root/',
         'jcr_root/aemsync.txt',
         'jcr_root/apps/.content.xml@nt:folder',
@@ -429,15 +427,7 @@ test('aemsync', class {
         'jcr_root/apps/myapp/component/folder-node-nested/foo/bar/.content.xml@nt:unstructured',
         'jcr_root/apps/myapp/component/folder-node-nested/foo/bar/baz/',
         'jcr_root/apps/myapp/component/folder-node-nested/foo/bar/baz/.content.xml@nt:unstructured',
-        'jcr_root/apps/myapp/component/folder-node-nested/foo/bar/baz/file-node.xml',
-        'META-INF/',
-        'META-INF/vault/',
-        'META-INF/vault/config.xml',
-        'META-INF/vault/definition/',
-        'META-INF/vault/definition/.content.xml@vlt:PackageDefinition',
-        'META-INF/vault/filter.xml',
-        'META-INF/vault/nodetypes.cnd',
-        'META-INF/vault/properties.xml'
+        'jcr_root/apps/myapp/component/folder-node-nested/foo/bar/baz/file-node.xml'
       ],
       filter: [
         '<?xml version="1.0" encoding="UTF-8"?>',
@@ -493,21 +483,13 @@ test('aemsync', class {
       ]
     }
 
-    const result = await this._push(path.join(COMPONENT, 'folder-node-nested', 'foo', 'bar', 'baz', 'file-node.xml'))
+    const result = await this._push(`${COMPONENT}/folder-node-nested/foo/bar/baz/file-node.xml`)
     assert.deepStrictEqual(result, expected)
   }
 
   async '+ _jcr_content, + _jcr_content/.content.xml, + _jcr_content/file-node.xml, - _jcr_content/deleted.xml' () {
     const expected = {
       entries: [
-        'jcr_root/',
-        'jcr_root/aemsync.txt',
-        'jcr_root/apps/.content.xml@nt:folder',
-        'jcr_root/apps/myapp/.content.xml@nt:folder',
-        'jcr_root/apps/myapp/component/.content.xml@cq:Component',
-        'jcr_root/apps/myapp/component/_jcr_content/',
-        'jcr_root/apps/myapp/component/_jcr_content/.content.xml@cq:PageContent',
-        'jcr_root/apps/myapp/component/_jcr_content/file-node.xml',
         'META-INF/',
         'META-INF/vault/',
         'META-INF/vault/config.xml',
@@ -515,7 +497,15 @@ test('aemsync', class {
         'META-INF/vault/definition/.content.xml@vlt:PackageDefinition',
         'META-INF/vault/filter.xml',
         'META-INF/vault/nodetypes.cnd',
-        'META-INF/vault/properties.xml'
+        'META-INF/vault/properties.xml',
+        'jcr_root/',
+        'jcr_root/aemsync.txt',
+        'jcr_root/apps/.content.xml@nt:folder',
+        'jcr_root/apps/myapp/.content.xml@nt:folder',
+        'jcr_root/apps/myapp/component/.content.xml@cq:Component',
+        'jcr_root/apps/myapp/component/_jcr_content/',
+        'jcr_root/apps/myapp/component/_jcr_content/.content.xml@cq:PageContent',
+        'jcr_root/apps/myapp/component/_jcr_content/file-node.xml'
       ],
       filter: [
         '<?xml version="1.0" encoding="UTF-8"?>',
@@ -552,27 +542,23 @@ test('aemsync', class {
         '</workspaceFilter>'
       ]
     }
-    let result = await this._push(path.join(COMPONENT, '_jcr_content'))
+
+    let result = await this._push(`${COMPONENT}/_jcr_content`)
     assert.deepStrictEqual(result, expected)
 
-    result = await this._push(path.join(COMPONENT, '_jcr_content', 'file-node.xml'))
+    result = await this._push(`${COMPONENT}/_jcr_content/file-node.xml`)
     assert.deepStrictEqual(result, expected)
 
-    result = await this._push(path.join(COMPONENT, '_jcr_content', '.content.xml'))
+    result = await this._push(`${COMPONENT}/_jcr_content/.content.xml`)
     assert.deepStrictEqual(result, expected)
 
-    result = await this._push(path.join(COMPONENT, '_jcr_content', 'deleted.xml'))
+    result = await this._push(`${COMPONENT}/_jcr_content/deleted.xml`)
     assert.deepStrictEqual(result, expected)
   }
 
   async '- deleted' () {
     const expected = {
       entries: [
-        'jcr_root/',
-        'jcr_root/aemsync.txt',
-        'jcr_root/apps/.content.xml@nt:folder',
-        'jcr_root/apps/myapp/.content.xml@nt:folder',
-        'jcr_root/apps/myapp/component/.content.xml@cq:Component',
         'META-INF/',
         'META-INF/vault/',
         'META-INF/vault/config.xml',
@@ -580,7 +566,12 @@ test('aemsync', class {
         'META-INF/vault/definition/.content.xml@vlt:PackageDefinition',
         'META-INF/vault/filter.xml',
         'META-INF/vault/nodetypes.cnd',
-        'META-INF/vault/properties.xml'
+        'META-INF/vault/properties.xml',
+        'jcr_root/',
+        'jcr_root/aemsync.txt',
+        'jcr_root/apps/.content.xml@nt:folder',
+        'jcr_root/apps/myapp/.content.xml@nt:folder',
+        'jcr_root/apps/myapp/component/.content.xml@cq:Component'
       ],
       filter: [
         '<?xml version="1.0" encoding="UTF-8"?>',
@@ -608,18 +599,13 @@ test('aemsync', class {
       ]
     }
 
-    const result = await this._push(path.join(COMPONENT, 'deleted'))
+    const result = await this._push(`${COMPONENT}/deleted`)
     assert.deepStrictEqual(result, expected)
   }
 
-  async '+ _cq_design_dialog.xml' () {
+  async '+ new-file.txt, - new-file.txt' () {
     const expected = {
       entries: [
-        'jcr_root/',
-        'jcr_root/aemsync.txt',
-        'jcr_root/apps/.content.xml@nt:folder',
-        'jcr_root/apps/myapp/.content.xml@nt:folder',
-        'jcr_root/apps/myapp/component/.content.xml@cq:Component',
         'META-INF/',
         'META-INF/vault/',
         'META-INF/vault/config.xml',
@@ -627,12 +613,17 @@ test('aemsync', class {
         'META-INF/vault/definition/.content.xml@vlt:PackageDefinition',
         'META-INF/vault/filter.xml',
         'META-INF/vault/nodetypes.cnd',
-        'META-INF/vault/properties.xml'
+        'META-INF/vault/properties.xml',
+        'jcr_root/',
+        'jcr_root/aemsync.txt',
+        'jcr_root/apps/.content.xml@nt:folder',
+        'jcr_root/apps/myapp/.content.xml@nt:folder',
+        'jcr_root/apps/myapp/component/.content.xml@cq:Component'
       ],
       filter: [
         '<?xml version="1.0" encoding="UTF-8"?>',
         '<workspaceFilter version="1.0">',
-        '<filter root="/apps/myapp/component/cq:design_dialog" />',
+        '<filter root="/apps/myapp/component/new-file.txt" />',
         '',
         '<filter root="/apps/myapp/component">',
         '<exclude pattern="/apps/myapp/component/.*" />',
@@ -655,7 +646,17 @@ test('aemsync', class {
       ]
     }
 
-    const result = await this._push(path.join(COMPONENT, '_cq_design_dialog'))
+    // Create new file.
+    const newFile = `${COMPONENT}/new-file.txt`
+    fs.writeFileSync(newFile, 'new-file.txt')
+
+    // Delete file before push.
+    const result = await this._push(newFile, () => {
+      if (fs.existsSync(newFile)) {
+        fs.unlinkSync(newFile)
+      }
+    })
+
     assert.deepStrictEqual(result, expected)
   }
 })

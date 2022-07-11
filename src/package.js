@@ -1,14 +1,11 @@
-'use strict'
+import fs from 'fs'
+import globrex from 'globrex'
+import path from 'path'
+import util from 'util'
+import * as log from './log.js'
+import Zip from './zip.js'
 
-const util = require('util')
-const fs = require('fs')
-const path = require('path')
-const globrex = require('globrex')
-const log = require('./log')
-const defaults = require('./defaults')
-const Zip = require('./zip')
-
-const DATA_PATH = path.resolve(__dirname, '..', 'data')
+const DATA_PATH = path.resolve('./data')
 const PACKAGE_CONTENT_PATH = path.join(DATA_PATH, 'package-content')
 const NT_FOLDER_PATH = path.join(DATA_PATH, 'nt-folder', '.content.xml')
 const FILTER_ZIP_PATH = 'META-INF/vault/filter.xml'
@@ -25,8 +22,8 @@ const FILTER_CHILDREN = `
   </filter>`
 
 // https://jackrabbit.apache.org/filevault/vaultfs.html
-class Package {
-  constructor (exclude = defaults.exclude) {
+export default class Package {
+  constructor (exclude) {
     this.zip = new Zip()
     this.exclude = exclude || []
     this.entries = []
@@ -57,7 +54,7 @@ class Package {
       return null
     }
 
-    // If folder, Add missing .content.xml@nt:folder inside.
+    // If folder, add missing .content.xml@nt:folder inside.
     // This ensures proper handlig when removing inner .content.xml file.
     this._addContentXml(localPath)
 
@@ -140,47 +137,44 @@ class Package {
 
   save (archivePath) {
     if (this.entries.length === 0) {
-      return null
+      return {}
     }
 
-    // Create archive and add default package content.
-    const jcrRoot = path.join(PACKAGE_CONTENT_PATH, 'jcr_root')
-    const metaInf = path.join(PACKAGE_CONTENT_PATH, 'META-INF')
-    this.zip.add(jcrRoot, 'jcr_root')
-    this.zip.add(metaInf, 'META-INF')
+    try {
+      // Create archive and add default package content.
+      const jcrRoot = path.join(PACKAGE_CONTENT_PATH, 'jcr_root')
+      const metaInf = path.join(PACKAGE_CONTENT_PATH, 'META-INF')
+      this.zip.add(jcrRoot, 'jcr_root')
+      this.zip.add(metaInf, 'META-INF')
 
-    // Add each entry.
-    const filters = []
-    for (const entry of this.entries) {
-      if (!entry.exists) {
-        // DELETE
-        // Only filters need to be updated.
-        filters.push(util.format(FILTER, entry.filterPath))
-      } else {
-        // ADD
-        // Filters need to be updated.
-        const dirName = path.dirname(entry.filterPath)
-        // if (!entry.localPath.endsWith('.content.xml')) {
-        filters.push(util.format(FILTER_CHILDREN, dirName, dirName, entry.filterPath, entry.filterPath))
-        // }
+      // Add each entry.
+      const filters = []
+      for (const entry of this.entries) {
+        if (!entry.exists) {
+          // DELETE
+          // Only filters need to be updated.
+          filters.push(util.format(FILTER, entry.filterPath))
+        } else {
+          // ADD
+          // Filters need to be updated.
+          const dirName = path.dirname(entry.filterPath)
+          filters.push(util.format(FILTER_CHILDREN, dirName, dirName, entry.filterPath, entry.filterPath))
 
-        // ADD
-        // File or folder needs to be added to the zip.
-        this.zip.add(entry.localPath, entry.zipPath)
+          // ADD
+          // File or folder needs to be added to the zip.
+          this.zip.add(entry.localPath, entry.zipPath)
+        }
       }
+
+      // Add filter file.
+      const filter = util.format(FILTER_WRAPPER, filters.join('\n'))
+      this.zip.add(Buffer.from(filter), FILTER_ZIP_PATH)
+
+      return { path: this.zip.save(archivePath), contents: this.zip.inspect() }
+    } catch (err) {
+      // Can happen in case files change in the meanwhile.
+      return { err }
     }
-
-    // Add filter file.
-    const filter = util.format(FILTER_WRAPPER, filters.join('\n'))
-    this.zip.add(Buffer.from(filter), FILTER_ZIP_PATH)
-
-    // Debug package contents.
-    log.debug('Package details:')
-    log.group()
-    log.debug(JSON.stringify(this.zip.inspect(), null, 2))
-    log.groupEnd()
-
-    return this.zip.save(archivePath)
   }
 
   //
@@ -235,5 +229,3 @@ class Package {
       .replace(/\/_([^/^_]*)_([^/]*)$/g, '/$1:$2')
   }
 }
-
-module.exports = Package
