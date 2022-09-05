@@ -1,8 +1,7 @@
 #!/usr/bin/env node
-import FormData from 'form-data'
 import fs from 'fs'
 import minimist from 'minimist'
-import fetch from 'node-fetch'
+import fetch, { FormData, File } from 'node-fetch'
 import path from 'path'
 import watch from 'simple-watcher'
 import * as url from 'url'
@@ -69,11 +68,10 @@ Website:
 // =============================================================================
 
 async function post ({ archivePath, target, packmgrPath, checkIfUp }) {
-  const url = target + packmgrPath
   const form = new FormData()
-  form.append('file', fs.createReadStream(archivePath))
-  form.append('force', 'true')
-  form.append('install', 'true')
+  form.set('file', new File([fs.readFileSync(archivePath)], { type: 'text/plain' }))
+  form.set('force', 'true')
+  form.set('install', 'true')
 
   // Check if AEM is up and runnig.
   if (checkIfUp && !await check(target)) {
@@ -82,7 +80,15 @@ async function post ({ archivePath, target, packmgrPath, checkIfUp }) {
 
   const result = { target }
   try {
-    const res = await fetch(url, { method: 'POST', body: form })
+    const urlObj = new URL(target + packmgrPath)
+    const url = urlObj.origin + urlObj.pathname
+    const fetchArgs = { method: 'POST', body: form }
+    if (urlObj.password) {
+      const credentials = Buffer.from(`${urlObj.username}:${urlObj.password}`).toString('base64')
+      fetchArgs.headers = { Authorization: `Basic ${credentials}` }
+    }
+
+    const res = await fetch(url, fetchArgs)
 
     if (res.ok) {
       const text = await res.text()
@@ -159,7 +165,7 @@ export async function * push (args) {
     archive = pack.save()
     if (archive.err) {
       log.debug(archive.err)
-      await wait(100)
+      await wait(3000)
       log.info('Failed to create ZIP, retrying...')
     } else {
       break

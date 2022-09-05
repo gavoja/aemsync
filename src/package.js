@@ -1,11 +1,13 @@
 import fs from 'fs'
 import globrex from 'globrex'
 import path from 'path'
+import * as url from 'url'
 import util from 'util'
 import * as log from './log.js'
 import Zip from './zip.js'
 
-const DATA_PATH = path.resolve('./data')
+const DIRNAME = url.fileURLToPath(new URL('..', import.meta.url))
+const DATA_PATH = path.resolve(DIRNAME, 'data')
 const PACKAGE_CONTENT_PATH = path.join(DATA_PATH, 'package-content')
 const NT_FOLDER_PATH = path.join(DATA_PATH, 'nt-folder', '.content.xml')
 const FILTER_ZIP_PATH = 'META-INF/vault/filter.xml'
