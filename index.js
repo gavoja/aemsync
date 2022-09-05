@@ -5,12 +5,15 @@ import minimist from 'minimist'
 import fetch from 'node-fetch'
 import path from 'path'
 import watch from 'simple-watcher'
+import * as url from 'url'
 import xmlToJson from 'xml-to-json-stream'
 import Channel from './src/channel.js'
 import * as log from './src/log.js'
 import Package from './src/package.js'
 
-const VERSION = JSON.parse(fs.readFileSync('./package.json', 'utf8')).version
+const DIRNAME = url.fileURLToPath(new URL('.', import.meta.url))
+const PACKAGE_JSON = path.join(DIRNAME, 'package.json')
+const VERSION = JSON.parse(fs.readFileSync(PACKAGE_JSON, 'utf8')).version
 const DEFAULTS = {
   workingDir: '.',
   exclude: ['**/jcr_root/*', '**/@(.git|.svn|.hg|target)', '**/@(.git|.svn|.hg|target)/**'],
