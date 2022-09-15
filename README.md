@@ -58,6 +58,8 @@ Examples:
     > aemsync -e **/*.orig -e **/test -e -e **/test/**
   Just push, don't watch:
     > aemsync -p /foo/bar/my-workspace/jcr_content/apps/my-app/components/my-component
+  Push multiple:
+    > aemsync -p /foo/bar/my-workspace/jcr_content/apps/my-app/components/my-component -p /foo/bar/my-workspace/jcr_content/apps/my-app/components/my-other-component
 ```
 
 JavaScript API

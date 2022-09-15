@@ -58,6 +58,8 @@ Examples:
     > aemsync -e **/*.orig -e **/test -e -e **/test/**
   Just push, don't watch:
     > aemsync -p /foo/bar/my-workspace/jcr_content/apps/my-app/components/my-component
+  Push multiple:
+    > aemsync -p /foo/bar/my-workspace/jcr_content/apps/my-app/components/my-component -p /foo/bar/my-workspace/jcr_content/apps/my-app/components/my-other-component
 
 Website:
   https://github.com/gavoja/aemsync
@@ -243,8 +245,15 @@ function getArgs () {
     }
   })
 
+  let payload = null
+  if (args.p) {
+    payload = (Array.isArray(args.p) ? args.p : [args.p]).map((p) =>
+      path.resolve(p)
+    )
+  }
+
   return {
-    payload: args.p ? path.resolve(args.p) : null,
+    payload,
     workingDir: path.resolve(args.w),
     targets: Array.isArray(args.t) ? args.t : [args.t],
     exclude: Array.isArray(args.e) ? args.e : [args.e],
@@ -275,9 +284,9 @@ export async function main () {
   // Path to push does not have to exist.
   // Non-existing path can be used for deletion.
   if (args.payload) {
-    for await (const result of push(args)) {
-      debugResult(result)
-    }
+    const result = (await push(args).next()).value
+    debugResult(result)
+    return
   }
 
   //
