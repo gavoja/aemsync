@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 import fs from 'fs'
-import minimist from 'minimist'
 import fetch, { FormData, File } from 'node-fetch'
 import path from 'path'
 import watch from 'simple-watcher'
@@ -233,35 +232,23 @@ function debugResult (result) {
 }
 
 function getArgs () {
-  const args = minimist(process.argv.slice(2), {
-    default: {
-      w: DEFAULTS.workingDir,
-      t: DEFAULTS.targets,
-      e: DEFAULTS.exclude,
-      d: DEFAULTS.delay,
-      c: DEFAULTS.checkIfUp,
-      q: DEFAULTS.packmgrPath,
-      v: DEFAULTS.verbose
-    }
-  })
-
-  let payload = null
-  if (args.p) {
-    payload = (Array.isArray(args.p) ? args.p : [args.p]).map((p) =>
-      path.resolve(p)
-    )
-  }
+  const args = [' ', ...process.argv.slice(2)].join(' ').split(' -').slice(1).reduce((obj, arg) => {
+    const [key, value] = arg.split(/ (.*)/s)
+    obj[key] = obj[key] ?? []
+    obj[key].push(value)
+    return obj
+  }, {})
 
   return {
-    payload,
-    workingDir: path.resolve(args.w),
-    targets: Array.isArray(args.t) ? args.t : [args.t],
-    exclude: Array.isArray(args.e) ? args.e : [args.e],
-    delay: args.d,
-    checkIfUp: args.c,
-    packmgrPath: args.q,
-    help: args.h,
-    verbose: args.v
+    payload: args.p ? args.p.map(p => path.resolve(p)) : null,
+    workingDir: path.resolve(args?.d?.[0] ?? DEFAULTS.workingDir),
+    targets: args.t ?? DEFAULTS.targets,
+    exclude: args.e ?? DEFAULTS.exclude,
+    delay: Number(args?.d?.[0]) || DEFAULTS.delay,
+    checkIfUp: !!args.c,
+    packmgrPath: args?.q?.pop?.() ?? DEFAULTS.packmgrPath,
+    help: !!args.h,
+    verbose: !!args.v
   }
 }
 
