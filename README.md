@@ -41,6 +41,7 @@ Options:
                           **/jcr_root/*
                           **/@(.git|.svn|.hg|target)
                           **/@(.git|.svn|.hg|target)/**
+                          as well as Windows, macOS, and Linux system files (via https://www.toptal.com/developers/gitignore/api/windows,macos,linux).
   -d <delay>            Time to wait since the last change before push.
                         Default: 300 ms
   -q <packmgr_path>     Package manager path.
