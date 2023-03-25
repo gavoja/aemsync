@@ -105,7 +105,7 @@ const args = {
 
 Watching for file changes is fast, since it uses Node's `recursive` option for `fs.watch()` where applicable.
 
-Any changes inside `jcr_root` folders are detected and deployed to AEM instance(s) as a package. By default, there is an exclude filter in palce:
+Any changes inside `jcr_root` folders are detected and deployed to AEM instance(s) as a package. By default, there is an exclude filter in place:
 * Changes to first level directories under `jcr_root` are ingored. This is to avoid accidentally removing `apps`, `libs` or any other first level node in AEM.
 * Any paths containing `.svn`, `.git`, `.hg` or `target` are ignored.
 * The exclude filter can be overriden. Do note that this will remove the above rules completely and if required, they must be added manually.
@@ -115,4 +115,4 @@ Delay is the time to wait to pass since the last change before the package is cr
 ### Caveats
 
 1. Packages are installed using package manager service (`/crx/packmgr/service.jsp`), which takes some time to initialize after AEM startup. If the push happens before, the Sling Post Servlet will take over causing the `/crx/packmgr/service.jsp/file` node to be added to the repository. Use `-c` option to performs a status check before sending (all bundles must be active).
-2. Changing any XML file will cause the parent folder to be pushed. Given the many special cases around XML files, the handlig is left to the package manager.
+2. Changing any XML file will cause the parent folder to be pushed. Given the many special cases around XML files, the handling is left to the package manager.
