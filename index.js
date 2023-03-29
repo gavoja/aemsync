@@ -241,7 +241,7 @@ function getArgs () {
 
   return {
     payload: args.p ? args.p.map(p => path.resolve(p)) : null,
-    workingDir: path.resolve(args?.d?.[0] ?? DEFAULTS.workingDir),
+    workingDir: path.resolve(args?.w?.[0] ?? DEFAULTS.workingDir),
     targets: args.t ?? DEFAULTS.targets,
     exclude: args.e ?? DEFAULTS.exclude,
     delay: Number(args?.d?.[0]) || DEFAULTS.delay,
