@@ -14,7 +14,45 @@ const PACKAGE_JSON = path.join(DIRNAME, 'package.json')
 const VERSION = JSON.parse(fs.readFileSync(PACKAGE_JSON, 'utf8')).version
 const DEFAULTS = {
   workingDir: '.',
-  exclude: ['**/jcr_root/*', '**/@(.git|.svn|.hg|target)', '**/@(.git|.svn|.hg|target)/**'],
+  exclude: [
+    '**/jcr_root/*',
+    '**/@(.git|.svn|.hg|target)',
+    '**/@(.git|.svn|.hg|target)/**',
+    // Linux temp files
+    '**/*~',
+    '**/.fuse_hidden*',
+    '**/.directory/**',
+    '**/.Trash-*',
+    '**/.Trash-*/**',
+    '**/.nfs*',
+    // macOS
+    '**/.DS_Store',
+    '**/.Apple',
+    '**/.LSOverride',
+    '**/._*',
+    '**/.DocumentRevisions-V100',
+    '**/.fseventsd',
+    '**/.Spotlight-V100',
+    '**/.TemporaryItems',
+    '**/.Trashes',
+    '**/.VolumeIcon.icns',
+    '**/.com.apple.timemachine.donotpresent',
+    '**/.AppleDB/**',
+    '**/.AppleDesktop/**',
+    '**/Network Trash Folder/**',
+    '**/Temporary Items/**',
+    '**/.apdisk/**',
+    '**/*.icloud',
+    // Windows
+    '**/Thumbs.db',
+    '**/Thumbs.db:encryptable',
+    '**/ehthumbs.db',
+    '**/ethumbs_vista.db',
+    '**/*.stackdump',
+    '**/[Dd]esktop.ini',
+    '**/$RECYCLE.BIN/**',
+    '**/*.lnk'
+  ],
   packmgrPath: '/crx/packmgr/service.jsp',
   targets: ['http://admin:admin@localhost:4502'],
   delay: 300,
@@ -40,6 +78,7 @@ Options:
                           **/jcr_root/*
                           **/@(.git|.svn|.hg|target)
                           **/@(.git|.svn|.hg|target)/**
+                          as well as Windows, macOS, and Linux system files (via https://www.toptal.com/developers/gitignore/api/windows,macos,linux).
   -d <delay>            Time to wait since the last change before push.
                         Default: ${DEFAULTS.interval} ms
   -q <packmgr_path>     Package manager path.
@@ -103,7 +142,7 @@ async function post ({ archivePath, target, packmgrPath, checkIfUp }) {
         // Errors when installing selected nodes.
         if (errorLines.length) {
           result.err = new Error('Error installing nodes:\n' + errorLines.join('\n'))
-        // Error code in status.
+          // Error code in status.
         } else if (obj.crx.response.status.code !== '200') {
           result.err = new Error(obj.crx.response.status.textNode)
         }
@@ -191,7 +230,7 @@ export async function * aemsync (args) {
   const payload = []
   let timeoutId
 
-  // Process file changes in the background.
+    // Process file changes in the background.
   ;(async function () {
     for await (const localPath of watch(workingDir)) {
       payload.push(localPath)
