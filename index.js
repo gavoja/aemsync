@@ -125,7 +125,17 @@ async function post ({ archivePath, target, packmgrPath, checkIfUp }) {
 
 async function check (target) {
   try {
-    const res = await fetch(target)
+    let url = target
+    const headers = new Headers()
+    const regex = /\/\/(.*:.*)@/gm
+    const credential = regex.exec(target)
+
+    if (credential !== null) {
+      headers.append('Authorization', `Basic ${btoa(credential[1])}`)
+      url = target.replace(`${credential[1]}@`, '')
+    }
+
+    const res = await fetch(url, { headers })
     return res.status === 200
   } catch (err) {
     log.debug(err.message)
