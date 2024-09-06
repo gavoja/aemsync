@@ -82,14 +82,12 @@ import { aemsync, push } from 'aemsync'
     './foo/bar/my-workspace/jcr_content/apps/my-app/components/something-else'
   ]}
 
-  for await (const result of aemsync(args)) {
-    // Will yield one result for each target.
-    console.log(result)
-  }
+  const result = (await push(args).next()).value
+  console.log(result)
 })()
 ```
 
-JavaScript arguments and defaults for `aemsync()` and `push()` functions:
+JavaScript's arguments and defaults for `aemsync()` and `push()` functions:
 ```JavaScript
 const args = {
   workingDir: '.',
@@ -106,9 +104,9 @@ const args = {
 Watching for file changes is fast, since it uses Node's `recursive` option for `fs.watch()` where applicable.
 
 Any changes inside `jcr_root` folders are detected and deployed to AEM instance(s) as a package. By default, there is an exclude filter in place:
-* Changes to first level directories under `jcr_root` are ingored. This is to avoid accidentally removing `apps`, `libs` or any other first level node in AEM.
+* Changes to first level directories under `jcr_root` are ignored. This is to avoid accidentally removing `apps`, `libs` or any other first level node in AEM.
 * Any paths containing `.svn`, `.git`, `.hg` or `target` are ignored.
-* The exclude filter can be overriden. Do note that this will remove the above rules completely and if required, they must be added manually.
+* The exclude filter can be overridden. Do note that this will remove the above rules completely and if required, they must be added manually.
 
 Delay is the time to wait to pass since the last change before the package is created. In case of bulk changes (e.g. switching between code branches), creating a new package per file should be avoided and instead, all changes should be pushed in one go. Lowering the value decreases the delay for a single file change but may increase the delay for multiple file changes. If you are unsure, please leave the default.
 
