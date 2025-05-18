@@ -2,3 +2,4 @@ node_modules
 aemsync.zip
 npm-debug.log
 temp
+.env
