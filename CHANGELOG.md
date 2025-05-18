@@ -1,5 +1,8 @@
 # Changelog
 
+## 5.1.1
+
+- Added file system exclusions.
 
 ## 5.1.0
 
