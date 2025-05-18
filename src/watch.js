@@ -3,7 +3,7 @@ import path from 'node:path'
 
 let previousDir = ''
 
-async function innerWatch (pathsToWatch, options = { delay: 0 }, callback) {
+function watchWithCallback (pathsToWatch, options = { delay: 0 }, callback) {
   pathsToWatch = Array.isArray(pathsToWatch) ? pathsToWatch : [pathsToWatch]
 
   const payload = new Set()
@@ -36,7 +36,7 @@ export default async function * watch (pathsToWatch, options = { delay: 0 }) {
   const enqueue = () => promises.push(new Promise(resolve => resolves.push(resolve)))
 
   enqueue()
-  innerWatch(pathsToWatch, options, items => {
+  watchWithCallback(pathsToWatch, options, items => {
     enqueue()
     resolves.shift()(items)
   })
