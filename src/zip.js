@@ -38,7 +38,7 @@ export default class Zip {
 
   // Using getLocalFolder() and getLocalFile() methods would have been simpler,
   // however adm-zip does not handle empty folders properly.
-  // A top-down walk to identify all items makes the handlinng consistent
+  // A top-down walk to identify all items makes the handling consistent
   // for all the cases.
   _getEntriesToAdd (localPath, zipPath) {
     const entries = [] // [{ localPath, zipPath, buffer }]

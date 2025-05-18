@@ -1,3 +1,3 @@
 #!/usr/bin/env node
-import { main } from '../index.js'
+import { main } from '../src/index.js'
 main()

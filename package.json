@@ -2,7 +2,7 @@
   "name": "aemsync",
   "version": "5.0.5",
   "description": "The code and content synchronization for Sling / AEM (Adobe Experience Manager).",
-  "author": "Michal Kochel <gavoja@gmail.com>",
+  "author": "Michal Kochel",
   "type": "module",
   "keywords": [
     "Adobe",
@@ -19,20 +19,25 @@
     "type": "git",
     "url": "https://github.com/gavoja/aemsync.git"
   },
-  "main": "index.js",
+  "main": "src/index.js",
   "devDependencies": {
-    "standard": "17.0.0",
-    "triala": "0.4.0"
+    "dotenv": "^16.5.0",
+    "dotenv-cli": "^8.0.0",
+    "fs-extra": "^11.3.0",
+    "release-it": "^19.0.2",
+    "standard": "^17.1.2"
   },
   "dependencies": {
-    "adm-zip": "0.5.10",
-    "globrex": "0.1.2",
-    "node-fetch": "3.3.1",
-    "simple-watcher": "5.0.1",
-    "xml-to-json-stream": "1.1.0"
+    "adm-zip": "^0.5.16",
+    "globrex": "^0.1.2",
+    "xml-to-json-stream": "^1.1.0"
   },
   "scripts": {
-    "test": "node test/test.js -v"
+    "lint": "npx standard",
+    "format": "npx standard --fix",
+    "test": "node tests/test.js",
+    "release": "dotenv release-it",
+    "release:dry": "dotenv release-it --dry-run"
   },
   "engines": {
     "node": ">=16.16.0"

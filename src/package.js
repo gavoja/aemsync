@@ -57,7 +57,7 @@ export default class Package {
     }
 
     // If folder, add missing .content.xml@nt:folder inside.
-    // This ensures proper handlig when removing inner .content.xml file.
+    // This ensures proper handling when removing inner .content.xml file.
     this._addContentXml(localPath)
 
     // Walk up the tree and add all .content.xml files.

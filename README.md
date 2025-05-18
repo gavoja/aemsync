@@ -67,24 +67,20 @@ JavaScript API
 import { aemsync, push } from 'aemsync'
 
 // Interactive watch example.
-(async function () {
-  const args = { workingDir }
+const args = { workingDir }
 
-  for await (const result of aemsync(args)) {
-    console.log(result)
-  }
-})()
+for await (const result of aemsync(args)) {
+  console.log(result)
+}
 
 // Push example.
-(async function () {
-  const args = { payload: [
-    './foo/bar/my-workspace/jcr_content/apps/my-app/components/my-component',
-    './foo/bar/my-workspace/jcr_content/apps/my-app/components/something-else'
-  ]}
+const args = { payload: [
+  './foo/bar/my-workspace/jcr_content/apps/my-app/components/my-component',
+  './foo/bar/my-workspace/jcr_content/apps/my-app/components/something-else'
+]}
 
-  const result = (await push(args).next()).value
-  console.log(result)
-})()
+const result = (await push(args).next()).value
+console.log(result)
 ```
 
 JavaScript's arguments and defaults for `aemsync()` and `push()` functions:

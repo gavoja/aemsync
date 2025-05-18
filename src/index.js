@@ -1,16 +1,14 @@
-#!/usr/bin/env node
 import fs from 'fs'
-import fetch, { FormData, File } from 'node-fetch'
 import path from 'path'
-import watch from 'simple-watcher'
 import * as url from 'url'
 import xmlToJson from 'xml-to-json-stream'
-import Channel from './src/channel.js'
-import * as log from './src/log.js'
-import Package from './src/package.js'
+import * as log from './log.js'
+import Package from './package.js'
+import watch from './watch.js'
 
+const ZIP_RETRY_DELAY = 3000
 const DIRNAME = url.fileURLToPath(new URL('.', import.meta.url))
-const PACKAGE_JSON = path.join(DIRNAME, 'package.json')
+const PACKAGE_JSON = path.resolve(DIRNAME, '..', 'package.json')
 const VERSION = JSON.parse(fs.readFileSync(PACKAGE_JSON, 'utf8')).version
 const DEFAULTS = {
   workingDir: '.',
@@ -74,7 +72,7 @@ async function post ({ archivePath, target, packmgrPath, checkIfUp }) {
   form.set('force', 'true')
   form.set('install', 'true')
 
-  // Check if AEM is up and runnig.
+  // Check if AEM is up and running.
   if (checkIfUp && !await check(target)) {
     return { target, err: new Error('AEM not ready') }
   }
@@ -116,7 +114,7 @@ async function post ({ archivePath, target, packmgrPath, checkIfUp }) {
       result.err = new Error(res.statusText)
     }
   } catch (err) {
-    // Handle unexpeted errors.
+    // Handle unexpected errors.
     result.err = err
   }
 
@@ -166,7 +164,7 @@ export async function * push (args) {
     archive = pack.save()
     if (archive.err) {
       log.debug(archive.err)
-      await wait(3000)
+      await wait(ZIP_RETRY_DELAY)
       log.info('Failed to create ZIP, retrying...')
     } else {
       break
@@ -187,32 +185,10 @@ export async function * push (args) {
 
 export async function * aemsync (args) {
   const { workingDir, delay } = { ...DEFAULTS, ...args }
-  const channel = new Channel()
-  const payload = []
-  let timeoutId
-
-  // Process file changes in the background.
-  ;(async function () {
-    for await (const localPath of watch(workingDir)) {
-      payload.push(localPath)
-
-      // Graceful handling of bulk changes.
-      // Process only after a certain amount of time passes since the last change.
-      clearTimeout(timeoutId)
-      timeoutId = setTimeout(async () => {
-        // Make sure only current batch of payload is processed.
-        const batch = payload.splice(0, payload.length)
-
-        for await (const result of push({ ...args, payload: batch })) {
-          channel.put(result)
-        }
-      }, delay)
+  for await (const payload of watch(workingDir, { delay })) {
+    for await (const result of push({ ...args, payload })) {
+      yield result
     }
-  })()
-
-  // Yield results via channel.
-  while (true) {
-    yield await channel.take()
   }
 }
 
