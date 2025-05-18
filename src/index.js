@@ -12,7 +12,47 @@ const PACKAGE_JSON = path.resolve(DIRNAME, '..', 'package.json')
 const VERSION = JSON.parse(fs.readFileSync(PACKAGE_JSON, 'utf8')).version
 const DEFAULTS = {
   workingDir: '.',
-  exclude: ['**/jcr_root/*', '**/@(.git|.svn|.hg|target)', '**/@(.git|.svn|.hg|target)/**'],
+  exclude: [
+    // AEM root folders (we don't want to accidentally delete them).
+    '**/jcr_root/*',
+    // Version control
+    '**/@(.git|.svn|.hg|target)',
+    '**/@(.git|.svn|.hg|target)/**',
+    // Linux
+    '**/*~',
+    '**/.fuse_hidden*',
+    '**/.directory/**',
+    '**/.Trash-*',
+    '**/.Trash-*/**',
+    '**/.nfs*',
+    // macOS
+    '**/.DS_Store',
+    '**/.Apple',
+    '**/.LSOverride',
+    '**/._*',
+    '**/.DocumentRevisions-V100',
+    '**/.fseventsd',
+    '**/.Spotlight-V100',
+    '**/.TemporaryItems',
+    '**/.Trashes',
+    '**/.VolumeIcon.icns',
+    '**/.com.apple.timemachine.donotpresent',
+    '**/.AppleDB/**',
+    '**/.AppleDesktop/**',
+    '**/Network Trash Folder/**',
+    '**/Temporary Items/**',
+    '**/.apdisk/**',
+    '**/*.icloud',
+    // Windows
+    '**/Thumbs.db',
+    '**/Thumbs.db:encryptable',
+    '**/ehthumbs.db',
+    '**/ethumbs_vista.db',
+    '**/*.stackdump',
+    '**/[Dd]esktop.ini',
+    '**/$RECYCLE.BIN/**',
+    '**/*.lnk'
+  ],
   packmgrPath: '/crx/packmgr/service.jsp',
   targets: ['http://admin:admin@localhost:4502'],
   delay: 300,
