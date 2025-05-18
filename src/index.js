@@ -123,7 +123,15 @@ async function post ({ archivePath, target, packmgrPath, checkIfUp }) {
 
 async function check (target) {
   try {
-    const res = await fetch(target)
+    // Convert embedded credentials to basic auth.
+    const url = new URL(target)
+    const auth = `${url.username}:${url.password}`
+    url.username = ''
+    url.password = ''
+    const res = await fetch(target, {
+      headers: { Authorization: 'Basic ' + Buffer.from(auth).toString('base64') }
+    })
+
     return res.status === 200
   } catch (err) {
     log.debug(err.message)
