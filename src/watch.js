@@ -45,4 +45,3 @@ export default async function * watch (pathsToWatch, options = { delay: 0 }) {
     yield promises.shift()
   }
 }
-//
