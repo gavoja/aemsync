@@ -12,7 +12,7 @@ function watchWithCallback (pathsToWatch, options = { delay: 0 }, callback) {
   for (const pathToWatch of pathsToWatch) {
     nodeWatch(pathToWatch, { ...options, recursive: true }, (eventType, filename) => {
       // Deduplicate parent folder changes.
-      if (filename && previousDir === filename && eventType === 'change') {
+      if (!filename || (previousDir === filename && eventType === 'change')) {
         return
       }
 
@@ -45,3 +45,4 @@ export default async function * watch (pathsToWatch, options = { delay: 0 }) {
     yield promises.shift()
   }
 }
+//
