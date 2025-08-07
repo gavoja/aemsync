@@ -38,6 +38,7 @@
     "test1": "node tests/test.js",
     "test": "node --test --test-reporter=spec --test-reporter-destination=stdout --experimental-test-coverage --test-coverage-exclude \"test/**/*\"",
     "release": "dotenv release-it",
+    "release:ci": "dotenv release-it --ci",
     "release:dry": "dotenv release-it --dry-run"
   },
   "engines": {
