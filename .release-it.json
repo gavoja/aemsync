@@ -12,9 +12,5 @@
   },
   "npm": {
     "publish": true
-  },
-  "hooks": {
-    "before:init": ["npm run lint", "npm test"],
-    "after:release": "echo Successfully released ${name} v${version} to NPM and GitHub."
   }
 }
