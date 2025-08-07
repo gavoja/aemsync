@@ -21,10 +21,10 @@
   },
   "main": "src/index.js",
   "devDependencies": {
-    "dotenv": "^16.5.0",
-    "dotenv-cli": "^8.0.0",
-    "fs-extra": "^11.3.0",
-    "release-it": "^19.0.2",
+    "dotenv": "^17.2.1",
+    "dotenv-cli": "^10.0.0",
+    "fs-extra": "^11.3.1",
+    "release-it": "^19.0.4",
     "standard": "^17.1.2"
   },
   "dependencies": {
@@ -35,7 +35,8 @@
   "scripts": {
     "lint": "npx standard",
     "format": "npx standard --fix",
-    "test": "node tests/test.js",
+    "test1": "node tests/test.js",
+    "test": "node --test --test-reporter=spec --test-reporter-destination=stdout --experimental-test-coverage --test-coverage-exclude \"test/**/*\"",
     "release": "dotenv release-it",
     "release:dry": "dotenv release-it --dry-run"
   },
