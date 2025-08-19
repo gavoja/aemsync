@@ -13,45 +13,12 @@ const VERSION = JSON.parse(fs.readFileSync(PACKAGE_JSON, 'utf8')).version
 const DEFAULTS = {
   workingDir: '.',
   exclude: [
-    // AEM root folders (we don't want to accidentally delete them).
+    // AEM root folders (we do not want to accidentally delete them).
     '**/jcr_root/*',
-    // Version control
-    '**/@(.git|.svn|.hg|target)',
-    '**/@(.git|.svn|.hg|target)/**',
-    // Linux
-    '**/*~',
-    '**/.fuse_hidden*',
-    '**/.directory/**',
-    '**/.Trash-*',
-    '**/.Trash-*/**',
-    '**/.nfs*',
-    // macOS
-    '**/.DS_Store',
-    '**/.Apple',
-    '**/.LSOverride',
-    '**/._*',
-    '**/.DocumentRevisions-V100',
-    '**/.fseventsd',
-    '**/.Spotlight-V100',
-    '**/.TemporaryItems',
-    '**/.Trashes',
-    '**/.VolumeIcon.icns',
-    '**/.com.apple.timemachine.donotpresent',
-    '**/.AppleDB/**',
-    '**/.AppleDesktop/**',
-    '**/Network Trash Folder/**',
-    '**/Temporary Items/**',
-    '**/.apdisk/**',
-    '**/*.icloud',
-    // Windows
-    '**/Thumbs.db',
-    '**/Thumbs.db:encryptable',
-    '**/ehthumbs.db',
-    '**/ethumbs_vista.db',
-    '**/*.stackdump',
-    '**/[Dd]esktop.ini',
-    '**/$RECYCLE.BIN/**',
-    '**/*.lnk'
+    // Special files.
+    '**/@(.*|target|[Tt]humbs.db|[Dd]esktop.ini)',
+    // Special folders.
+    '**/@(.*|target)/**'
   ],
   packmgrPath: '/crx/packmgr/service.jsp',
   targets: ['http://admin:admin@localhost:4502'],
@@ -76,8 +43,8 @@ Options:
   -e <exclude_filter>   Extended glob filter; multiple can be set.
                         Default:
                           **/jcr_root/*
-                          **/@(.git|.svn|.hg|target)
-                          **/@(.git|.svn|.hg|target)/**
+                          **/@(.*|target|[Tt]humbs.db|[Dd]esktop.ini)
+                          **/@(.*|target)/**
   -d <delay>            Time to wait since the last change before push.
                         Default: ${DEFAULTS.interval} ms
   -q <packmgr_path>     Package manager path.
@@ -92,7 +59,7 @@ Examples:
   Custom targets:
     > aemsync -t http://admin:admin@localhost:4502 -t http://admin:admin@localhost:4503 -w ~/workspace/my_project
   Custom exclude rules:
-    > aemsync -e **/*.orig -e **/test -e -e **/test/**
+    > aemsync -e **/*.orig -e **/test -e **/test/**
   Just push, don't watch:
     > aemsync -p /foo/bar/my-workspace/jcr_content/apps/my-app/components/my-component
   Push multiple:

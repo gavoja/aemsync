@@ -125,7 +125,8 @@ export default class Package {
   _isExcluded (localPath) {
     for (const globPattern of this.exclude) {
       const regex = globrex(globPattern, { globstar: true, extended: true }).regex
-      if (regex.test(localPath)) {
+      // Exclude '.content.xml' from glob matching. This greatly simplifies the exclusion list.
+      if (regex.test(localPath.replace('.content.xml', '_content.xml'))) {
         return true
       }
     }

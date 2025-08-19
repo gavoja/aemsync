@@ -33,9 +33,9 @@
     "xml-to-json-stream": "^1.1.0"
   },
   "scripts": {
+    "start": "node ./bin/aemsync.js",
     "lint": "npx standard",
     "format": "npx standard --fix",
-    "test1": "node tests/test.js",
     "test": "node --test --test-reporter=spec --test-reporter-destination=stdout --experimental-test-coverage --test-coverage-exclude \"test/**/*\"",
     "release": "dotenv release-it",
     "release:ci": "dotenv release-it --ci",
