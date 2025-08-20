@@ -87,14 +87,12 @@ async function post ({ archivePath, target, packmgrPath, checkIfUp }) {
   const result = { target }
   try {
     const urlObj = new URL(target + packmgrPath)
-    const url = urlObj.origin + urlObj.pathname
     const fetchArgs = { method: 'POST', body: form }
     if (urlObj.password) {
-      const credentials = Buffer.from(`${urlObj.username}:${urlObj.password}`).toString('base64')
-      fetchArgs.headers = { Authorization: `Basic ${credentials}` }
+      fetchArgs.headers = { Authorization: extractBasicAuth(urlObj) }
     }
 
-    const res = await fetch(url, fetchArgs)
+    const res = await fetch(urlObj, fetchArgs)
 
     if (res.ok) {
       const text = await res.text()
@@ -128,15 +126,20 @@ async function post ({ archivePath, target, packmgrPath, checkIfUp }) {
   return result
 }
 
+function extractBasicAuth(urlObj) {
+  const credentials = `${decodeURIComponent(urlObj.username)}:${decodeURIComponent(urlObj.password)}`
+  urlObj.username = ''
+  urlObj.password = ''
+  return `Basic ${Buffer.from(credentials).toString('base64')}`
+}
+
+
 async function check (target) {
   try {
     // Convert embedded credentials to basic auth.
     const url = new URL(target)
-    const auth = `${url.username}:${url.password}`
-    url.username = ''
-    url.password = ''
-    const res = await fetch(target, {
-      headers: { Authorization: 'Basic ' + Buffer.from(auth).toString('base64') }
+    const res = await fetch(url, {
+      headers: { Authorization: extractBasicAuth(url) }
     })
 
     return res.status === 200
