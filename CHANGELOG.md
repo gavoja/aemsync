@@ -1,5 +1,9 @@
 # Changelog
 
+## 5.2.2
+
+- Fixed username and password percent encoding.
+
 ## 5.2.1
 
 - Moved CLI to a separate module.
