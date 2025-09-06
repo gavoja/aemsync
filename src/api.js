@@ -41,15 +41,8 @@ async function post ({ archivePath, target, packmgrPath, checkIfUp }) {
 
   const result = { target }
   try {
-    const urlObj = new URL(target + packmgrPath)
-    const url = urlObj.origin + urlObj.pathname
-    const fetchArgs = { method: 'POST', body: form }
-    if (urlObj.password) {
-      const credentials = Buffer.from(`${urlObj.username}:${urlObj.password}`).toString('base64')
-      fetchArgs.headers = { Authorization: `Basic ${credentials}` }
-    }
-
-    const res = await fetch(url, fetchArgs)
+    const [url, headers] = extractBasicAuth(target + packmgrPath)
+    const res = await fetch(url, { method: 'POST', body: form, headers })
 
     if (res.ok) {
       const text = await res.text()
@@ -63,8 +56,8 @@ async function post ({ archivePath, target, packmgrPath, checkIfUp }) {
         // Errors when installing selected nodes.
         if (errorLines.length) {
           result.err = new Error('Error installing nodes:\n' + errorLines.join('\n'))
-        // Error code in status.
         } else if (obj.crx.response.status.code !== '200') {
+          // Error code in status.
           result.err = new Error(obj.crx.response.status.textNode)
         }
       } catch (err) {
@@ -85,20 +78,28 @@ async function post ({ archivePath, target, packmgrPath, checkIfUp }) {
 
 async function check (target) {
   try {
-    // Convert embedded credentials to basic auth.
-    const url = new URL(target)
-    const auth = `${url.username}:${url.password}`
-    url.username = ''
-    url.password = ''
-    const res = await fetch(target, {
-      headers: { Authorization: 'Basic ' + Buffer.from(auth).toString('base64') }
-    })
-
+    const [url, headers] = extractBasicAuth(target)
+    const res = await fetch(url, { headers })
     return res.status === 200
   } catch (err) {
     log.debug(err.message)
     return false
   }
+}
+
+function extractBasicAuth (url) {
+  const urlObj = new URL(url)
+  let headers
+  if (urlObj.username || urlObj.password) {
+    const credentials = `${decodeURIComponent(urlObj.username)}:${decodeURIComponent(urlObj.password)}`
+    headers = { Authorization: `Basic ${Buffer.from(credentials).toString('base64')}` }
+  }
+
+  const strippedUrlObj = new URL(urlObj)
+  strippedUrlObj.username = ''
+  strippedUrlObj.password = ''
+
+  return [strippedUrlObj.toString(), headers]
 }
 
 function parseXml (xml) {
