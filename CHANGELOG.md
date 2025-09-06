@@ -1,5 +1,12 @@
 # Changelog
 
+## 5.2.1
+
+- Moved CLI to a separate module.
+- Prefixed Node modules with `node:`.
+- Updated README.md.
+- Added GitHub test workflow.
+
 ## 5.1.1
 
 - Added file system exclusions.

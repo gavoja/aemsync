@@ -1,9 +1,9 @@
-aemsync
-=======
+# aemsync
+
 
 The code and content synchronization for Sling / AEM (Adobe Experience Manager).
 
-### Synopsis
+## Synopsis
 
 The tool pushes content to AEM instance(s) upon a file change.
 
@@ -12,7 +12,7 @@ The tool pushes content to AEM instance(s) upon a file change.
 * IDE / editor agnostic.
 * Works on Windows, Linux, and Mac.
 
-### Installation
+## Installation
 
 With [npm](http://npmjs.org) do:
 
@@ -20,13 +20,14 @@ With [npm](http://npmjs.org) do:
 npm install aemsync -g
 ```
 
-### Usage
+## Usage
 
 Simply run `aemsync` on your project path, make a change to any of your files or directories, and watch the magic happen.
 
-### Advanced usage
+## Advanced usage
 
-CLI
+### CLI
+
 ```
 Usage:
   aemsync [OPTIONS]
@@ -66,41 +67,60 @@ Website:
   https://github.com/gavoja/aemsync
 ```
 
-JavaScript API
-```JavaScript
-import { aemsync, push } from 'aemsync'
+### API
 
-// Interactive watch example.
-const args = { workingDir }
+Watch mode:
+
+```js
+import { aemsync } from 'aemsync'
+
+const args = { workingDir: 'c:/code/my-aem-project' }
 
 for await (const result of aemsync(args)) {
   console.log(result)
 }
-
-// Push example.
-const args = { payload: [
-  './foo/bar/my-workspace/jcr_content/apps/my-app/components/my-component',
-  './foo/bar/my-workspace/jcr_content/apps/my-app/components/something-else'
-]}
-
-const result = (await push(args).next()).value
-console.log(result)
 ```
 
-JavaScript's arguments and defaults for `aemsync()` and `push()` functions:
+Push:
 
-```JavaScript
+```js
+import { push } from 'aemsync'
+
 const args = {
-  workingDir: '.',
-  exclude: ['**/jcr_root/*', '**/@(.git|.svn|.hg|target)', '**/@(.git|.svn|.hg|target)/**'],
-  packmgrPath: '/crx/packmgr/service.jsp',
-  targets: ['http://admin:admin@localhost:4501'],
-  delay: 300,
-  checkIfUp: false
+  payload: [
+    './foo/bar/my-workspace/jcr_content/apps/my-app/components/my-component',
+    './foo/bar/my-workspace/jcr_content/apps/my-app/components/something-else'
+  ]
+}
+
+// Will yield for each target.
+for await (const result of push(args)) {
+  console.log(result)
 }
 ```
 
-### Description
+Defaults for `args`:
+
+```js
+const args = {
+  workingDir: '.',
+  exclude: [
+    // AEM root folders (we do not want to accidentally delete them).
+    '**/jcr_root/*',
+    // Special files.
+    '**/@(.*|target|[Tt]humbs.db|[Dd]esktop.ini)',
+    // Special folders.
+    '**/@(.*|target)/**'
+  ],
+  packmgrPath: '/crx/packmgr/service.jsp',
+  targets: ['http://admin:admin@localhost:4502'],
+  delay: 300,
+  checkIfUp: false,
+  verbose: false
+}
+```
+
+## Description
 
 Watching for file changes is fast, since it uses Node's `recursive` option for `fs.watch()` where applicable.
 
@@ -108,7 +128,7 @@ Any changes inside `jcr_root` folders are detected and uploaded to AEM instance(
 
 The delay is the time elapsed since the last change before the package is created. In case of bulk changes (e.g., switching between code branches), creating a new package per file should be avoided; instead, all changes should be pushed in one go. Lowering the value decreases the delay for a single file change but may increase the delay for multiple file changes. If you are unsure, please leave it at the default.
 
-### Caveats
+## Caveats
 
 1. Packages are installed using the package manager service (`/crx/packmgr/service.jsp`), which takes some time to initialize after AEM startup. If the push happens before initialization, the Sling Post Servlet will take over, causing the `/crx/packmgr/service.jsp/file` node to be added to the repository. Use the `-c` option to perform a status check before sending (all bundles must be active).
 2. Changing any XML file will cause the parent folder to be pushed. Given the many special cases around XML files, the handling is left to the package manager.

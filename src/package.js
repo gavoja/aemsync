@@ -1,12 +1,12 @@
-import fs from 'fs'
 import globrex from 'globrex'
-import path from 'path'
-import * as url from 'url'
-import util from 'util'
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import util from 'node:util'
 import * as log from './log.js'
 import Zip from './zip.js'
 
-const DIRNAME = url.fileURLToPath(new URL('..', import.meta.url))
+const DIRNAME = fileURLToPath(new URL('..', import.meta.url))
 const DATA_PATH = path.resolve(DIRNAME, 'data')
 const PACKAGE_CONTENT_PATH = path.join(DATA_PATH, 'package-content')
 const NT_FOLDER_PATH = path.join(DATA_PATH, 'nt-folder', '.content.xml')
