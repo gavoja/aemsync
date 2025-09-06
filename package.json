@@ -19,9 +19,9 @@
     "type": "git",
     "url": "https://github.com/gavoja/aemsync.git"
   },
-  "main": "src/index.js",
+  "main": "src/api.js",
   "devDependencies": {
-    "dotenv": "^17.2.1",
+    "dotenv": "^17.2.2",
     "dotenv-cli": "^10.0.0",
     "fs-extra": "^11.3.1",
     "release-it": "^19.0.4",
@@ -33,7 +33,7 @@
     "xml-to-json-stream": "^1.1.0"
   },
   "scripts": {
-    "start": "node ./bin/aemsync.js",
+    "start": "node ./src/cli.js",
     "lint": "npx standard",
     "format": "npx standard --fix",
     "test": "node --test --test-reporter=spec --test-reporter-destination=stdout --experimental-test-coverage --test-coverage-exclude \"test/**/*\"",
@@ -42,10 +42,10 @@
     "release:dry": "dotenv release-it --dry-run"
   },
   "engines": {
-    "node": ">=16.16.0"
+    "node": ">=22.18.0"
   },
   "bin": {
-    "aemsync": "./bin/aemsync.js"
+    "aemsync": "./src/cli.js"
   },
   "license": "MIT",
   "false": {}

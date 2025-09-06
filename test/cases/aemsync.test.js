@@ -2,7 +2,7 @@ import fs from 'fs-extra'
 import assert from 'node:assert'
 import path from 'node:path'
 import { after, before, test } from 'node:test'
-import { aemsync } from '../../src/index.js'
+import { aemsync } from '../../src/api.js'
 
 const SAMPLE_CONTENT = path.resolve('./test/data')
 const TEMP = path.resolve('./temp')
