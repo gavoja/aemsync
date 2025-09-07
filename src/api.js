@@ -90,16 +90,16 @@ async function check (target) {
 function extractBasicAuth (url) {
   const urlObj = new URL(url)
   let headers
+
   if (urlObj.username || urlObj.password) {
     const credentials = `${decodeURIComponent(urlObj.username)}:${decodeURIComponent(urlObj.password)}`
     headers = { Authorization: `Basic ${Buffer.from(credentials).toString('base64')}` }
   }
 
-  const strippedUrlObj = new URL(urlObj)
-  strippedUrlObj.username = ''
-  strippedUrlObj.password = ''
+  urlObj.username = ''
+  urlObj.password = ''
 
-  return [strippedUrlObj.toString(), headers]
+  return [urlObj.toString(), headers]
 }
 
 function parseXml (xml) {
