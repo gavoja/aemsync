@@ -22,20 +22,21 @@
   "main": "src/api.js",
   "devDependencies": {
     "dotenv": "^17.2.2",
-    "dotenv-cli": "^10.0.0",
+    "dotenv-cli": "^11.0.0",
     "fs-extra": "^11.3.1",
-    "release-it": "^19.0.4",
-    "standard": "^17.1.2"
+    "neostandard": "^0.12.2",
+    "release-it": "^19.0.4"
   },
   "dependencies": {
     "adm-zip": "^0.5.16",
+    "eslint": "^9.39.1",
     "globrex": "^0.1.2",
     "xml-to-json-stream": "^1.1.0"
   },
   "scripts": {
     "start": "node ./src/cli.js",
-    "lint": "npx standard",
-    "format": "npx standard --fix",
+    "lint": "npx eslint",
+    "format": "npx eslint --fix",
     "test": "node --test --test-reporter=spec --test-reporter-destination=stdout --experimental-test-coverage --test-coverage-exclude \"test/**/*\"",
     "release": "dotenv release-it",
     "release:ci": "dotenv release-it --ci",

@@ -22,7 +22,7 @@ function watchWithCallback (pathsToWatch, options = { delay: 0 }, callback) {
       // Handle bulk changes in batches.
       clearTimeout(timeout)
       timeout = setTimeout(() => {
-        const batch = [...payload]
+        const batch = [...payload].toSorted() // Ensure consistent order for stability.
         callback(batch)
         payload.clear()
       }, options.delay)

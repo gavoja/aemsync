@@ -1,6 +1,5 @@
 # aemsync
 
-
 The code and content synchronization for Sling / AEM (Adobe Experience Manager).
 
 ## Synopsis
