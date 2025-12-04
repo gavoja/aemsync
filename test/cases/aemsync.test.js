@@ -338,6 +338,8 @@ test('- folder', async () => {
     filter: [
       '<?xml version="1.0" encoding="UTF-8"?>',
       '<workspaceFilter version="1.0">',
+      '<filter root="/apps/myapp/component/folder" />',
+      '',
       '<filter root="/apps/myapp/component">',
       '<exclude pattern="/apps/myapp/component/.*" />',
       '<include pattern="/apps/myapp/component/.content" />',
@@ -355,8 +357,6 @@ test('- folder', async () => {
       '<include pattern="/apps/.content" />',
       '<include pattern="/apps/.content/.*" />',
       '</filter>',
-      '',
-      '<filter root="/apps/myapp/component/folder" />',
       '</workspaceFilter>'
     ]
   })
