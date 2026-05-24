@@ -429,3 +429,69 @@ test('+ component', async () => {
     ]
   })
 })
+
+test('+ sibling folders with shared prefix', async () => {
+  add('jcr_root/apps/myapp/clientlib-site')
+  add('jcr_root/apps/myapp/clientlib-site-new')
+  await expect({
+    entries: [
+      'META-INF/',
+      'META-INF/vault/',
+      'META-INF/vault/config.xml',
+      'META-INF/vault/definition/',
+      'META-INF/vault/definition/.content.xml@vlt:PackageDefinition',
+      'META-INF/vault/filter.xml',
+      'META-INF/vault/nodetypes.cnd',
+      'META-INF/vault/properties.xml',
+      'jcr_root/',
+      'jcr_root/aemsync.txt',
+      'jcr_root/apps/.content.xml@nt:folder',
+      'jcr_root/apps/myapp/.content.xml@nt:folder',
+      'jcr_root/apps/myapp/clientlib-site/',
+      'jcr_root/apps/myapp/clientlib-site/.content.xml@nt:folder',
+      'jcr_root/apps/myapp/clientlib-site-new/',
+      'jcr_root/apps/myapp/clientlib-site-new/.content.xml@nt:folder'
+    ],
+    filter: [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      '<workspaceFilter version="1.0">',
+      '<filter root="/apps/myapp">',
+      '<exclude pattern="/apps/myapp/.*" />',
+      '<include pattern="/apps/myapp/clientlib-site" />',
+      '<include pattern="/apps/myapp/clientlib-site/.*" />',
+      '</filter>',
+      '',
+      '<filter root="/apps/myapp/clientlib-site">',
+      '<exclude pattern="/apps/myapp/clientlib-site/.*" />',
+      '<include pattern="/apps/myapp/clientlib-site/.content" />',
+      '<include pattern="/apps/myapp/clientlib-site/.content/.*" />',
+      '</filter>',
+      '',
+      '<filter root="/apps/myapp">',
+      '<exclude pattern="/apps/myapp/.*" />',
+      '<include pattern="/apps/myapp/.content" />',
+      '<include pattern="/apps/myapp/.content/.*" />',
+      '</filter>',
+      '',
+      '<filter root="/apps">',
+      '<exclude pattern="/apps/.*" />',
+      '<include pattern="/apps/.content" />',
+      '<include pattern="/apps/.content/.*" />',
+      '</filter>',
+      '',
+      '<filter root="/apps/myapp">',
+      '<exclude pattern="/apps/myapp/.*" />',
+      '<include pattern="/apps/myapp/clientlib-site-new" />',
+      '<include pattern="/apps/myapp/clientlib-site-new/.*" />',
+      '</filter>',
+      '',
+      '<filter root="/apps/myapp/clientlib-site-new">',
+      '<exclude pattern="/apps/myapp/clientlib-site-new/.*" />',
+      '<include pattern="/apps/myapp/clientlib-site-new/.content" />',
+      '<include pattern="/apps/myapp/clientlib-site-new/.content/.*" />',
+      '</filter>',
+      '</workspaceFilter>'
+    ]
+  })
+})
+
