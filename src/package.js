@@ -105,12 +105,12 @@ export default class Package {
       }
 
       // Skip if parent already added (with exception of .content.xml).
-      if (zipPath.startsWith(existingZipPath) && !zipPath.endsWith('.content.xml')) {
+      if (zipPath.startsWith(existingZipPath + '/') && !zipPath.endsWith('.content.xml')) {
         return log.debug(`Parent already added to package, skipping: ${zipPath}`)
       }
 
       // Remove child if path to add is a parent.
-      if (existingZipPath.startsWith(zipPath)) {
+      if (existingZipPath.startsWith(zipPath + '/')) {
         log.debug(`Removing child: ${existingZipPath}`)
         this.entries.splice(i, 1)
       }

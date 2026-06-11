@@ -71,7 +71,11 @@ before(() => {
   watch()
 })
 
-after(() => {
+after(async () => {
+  // The watcher generator never ends, so the process must be terminated.
+  // Yield first so the last test's result flushes to the runner; exiting
+  // immediately drops it and the final test silently goes unreported.
+  await delay(500)
   process.exit(0)
 })
 
@@ -196,8 +200,13 @@ test('- file.txt', async () => {
   })
 })
 
-test('+ folder', async () => {
-  add(`${COMPONENT}/folder`)
+// The folder name must not be a name-prefix of its fixture siblings
+// (e.g. 'folder' vs 'folder-node'). On Linux, Node's recursive fs.watch
+// stops tracking prefix-sharing siblings when a directory is deleted
+// (nodejs/node lib/internal/fs/recursive_watch.js uses a bare startsWith)
+// and then emits spurious rename events for them, breaking the assertions.
+test('+ my-folder', async () => {
+  add(`${COMPONENT}/my-folder`)
   await expect({
     entries: [
       'META-INF/',
@@ -213,22 +222,22 @@ test('+ folder', async () => {
       'jcr_root/apps/.content.xml@nt:folder',
       'jcr_root/apps/myapp/.content.xml@nt:folder',
       'jcr_root/apps/myapp/component/.content.xml@cq:Component',
-      'jcr_root/apps/myapp/component/folder/',
-      'jcr_root/apps/myapp/component/folder/.content.xml@nt:folder'
+      'jcr_root/apps/myapp/component/my-folder/',
+      'jcr_root/apps/myapp/component/my-folder/.content.xml@nt:folder'
     ],
     filter: [
       '<?xml version="1.0" encoding="UTF-8"?>',
       '<workspaceFilter version="1.0">',
       '<filter root="/apps/myapp/component">',
       '<exclude pattern="/apps/myapp/component/.*" />',
-      '<include pattern="/apps/myapp/component/folder" />',
-      '<include pattern="/apps/myapp/component/folder/.*" />',
+      '<include pattern="/apps/myapp/component/my-folder" />',
+      '<include pattern="/apps/myapp/component/my-folder/.*" />',
       '</filter>',
       '',
-      '<filter root="/apps/myapp/component/folder">',
-      '<exclude pattern="/apps/myapp/component/folder/.*" />',
-      '<include pattern="/apps/myapp/component/folder/.content" />',
-      '<include pattern="/apps/myapp/component/folder/.content/.*" />',
+      '<filter root="/apps/myapp/component/my-folder">',
+      '<exclude pattern="/apps/myapp/component/my-folder/.*" />',
+      '<include pattern="/apps/myapp/component/my-folder/.content" />',
+      '<include pattern="/apps/myapp/component/my-folder/.content/.*" />',
       '</filter>',
       '',
       '<filter root="/apps/myapp/component">',
@@ -253,8 +262,8 @@ test('+ folder', async () => {
   })
 })
 
-test('+ folder/sub-folder', async () => {
-  add(`${COMPONENT}/folder/sub-folder`)
+test('+ my-folder/sub-folder', async () => {
+  add(`${COMPONENT}/my-folder/sub-folder`)
   await expect({
     entries: [
       'META-INF/',
@@ -270,29 +279,29 @@ test('+ folder/sub-folder', async () => {
       'jcr_root/apps/.content.xml@nt:folder',
       'jcr_root/apps/myapp/.content.xml@nt:folder',
       'jcr_root/apps/myapp/component/.content.xml@cq:Component',
-      'jcr_root/apps/myapp/component/folder/.content.xml@nt:folder',
-      'jcr_root/apps/myapp/component/folder/sub-folder/',
-      'jcr_root/apps/myapp/component/folder/sub-folder/.content.xml@nt:folder'
+      'jcr_root/apps/myapp/component/my-folder/.content.xml@nt:folder',
+      'jcr_root/apps/myapp/component/my-folder/sub-folder/',
+      'jcr_root/apps/myapp/component/my-folder/sub-folder/.content.xml@nt:folder'
     ],
     filter: [
       '<?xml version="1.0" encoding="UTF-8"?>',
       '<workspaceFilter version="1.0">',
-      '<filter root="/apps/myapp/component/folder">',
-      '<exclude pattern="/apps/myapp/component/folder/.*" />',
-      '<include pattern="/apps/myapp/component/folder/sub-folder" />',
-      '<include pattern="/apps/myapp/component/folder/sub-folder/.*" />',
+      '<filter root="/apps/myapp/component/my-folder">',
+      '<exclude pattern="/apps/myapp/component/my-folder/.*" />',
+      '<include pattern="/apps/myapp/component/my-folder/sub-folder" />',
+      '<include pattern="/apps/myapp/component/my-folder/sub-folder/.*" />',
       '</filter>',
       '',
-      '<filter root="/apps/myapp/component/folder/sub-folder">',
-      '<exclude pattern="/apps/myapp/component/folder/sub-folder/.*" />',
-      '<include pattern="/apps/myapp/component/folder/sub-folder/.content" />',
-      '<include pattern="/apps/myapp/component/folder/sub-folder/.content/.*" />',
+      '<filter root="/apps/myapp/component/my-folder/sub-folder">',
+      '<exclude pattern="/apps/myapp/component/my-folder/sub-folder/.*" />',
+      '<include pattern="/apps/myapp/component/my-folder/sub-folder/.content" />',
+      '<include pattern="/apps/myapp/component/my-folder/sub-folder/.content/.*" />',
       '</filter>',
       '',
-      '<filter root="/apps/myapp/component/folder">',
-      '<exclude pattern="/apps/myapp/component/folder/.*" />',
-      '<include pattern="/apps/myapp/component/folder/.content" />',
-      '<include pattern="/apps/myapp/component/folder/.content/.*" />',
+      '<filter root="/apps/myapp/component/my-folder">',
+      '<exclude pattern="/apps/myapp/component/my-folder/.*" />',
+      '<include pattern="/apps/myapp/component/my-folder/.content" />',
+      '<include pattern="/apps/myapp/component/my-folder/.content/.*" />',
       '</filter>',
       '',
       '<filter root="/apps/myapp/component">',
@@ -317,8 +326,8 @@ test('+ folder/sub-folder', async () => {
   })
 })
 
-test('- folder', async () => {
-  remove(`${COMPONENT}/folder`)
+test('- my-folder', async () => {
+  remove(`${COMPONENT}/my-folder`)
   await expect({
     entries: [
       'META-INF/',
@@ -338,7 +347,7 @@ test('- folder', async () => {
     filter: [
       '<?xml version="1.0" encoding="UTF-8"?>',
       '<workspaceFilter version="1.0">',
-      '<filter root="/apps/myapp/component/folder" />',
+      '<filter root="/apps/myapp/component/my-folder" />',
       '',
       '<filter root="/apps/myapp/component">',
       '<exclude pattern="/apps/myapp/component/.*" />',
@@ -424,6 +433,71 @@ test('+ component', async () => {
       '<exclude pattern="/apps/.*" />',
       '<include pattern="/apps/.content" />',
       '<include pattern="/apps/.content/.*" />',
+      '</filter>',
+      '</workspaceFilter>'
+    ]
+  })
+})
+
+test('+ sibling folders with shared prefix', async () => {
+  add('jcr_root/apps/myapp/clientlib-site')
+  add('jcr_root/apps/myapp/clientlib-site-new')
+  await expect({
+    entries: [
+      'META-INF/',
+      'META-INF/vault/',
+      'META-INF/vault/config.xml',
+      'META-INF/vault/definition/',
+      'META-INF/vault/definition/.content.xml@vlt:PackageDefinition',
+      'META-INF/vault/filter.xml',
+      'META-INF/vault/nodetypes.cnd',
+      'META-INF/vault/properties.xml',
+      'jcr_root/',
+      'jcr_root/aemsync.txt',
+      'jcr_root/apps/.content.xml@nt:folder',
+      'jcr_root/apps/myapp/.content.xml@nt:folder',
+      'jcr_root/apps/myapp/clientlib-site-new/',
+      'jcr_root/apps/myapp/clientlib-site-new/.content.xml@nt:folder',
+      'jcr_root/apps/myapp/clientlib-site/',
+      'jcr_root/apps/myapp/clientlib-site/.content.xml@nt:folder'
+    ],
+    filter: [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      '<workspaceFilter version="1.0">',
+      '<filter root="/apps/myapp">',
+      '<exclude pattern="/apps/myapp/.*" />',
+      '<include pattern="/apps/myapp/clientlib-site" />',
+      '<include pattern="/apps/myapp/clientlib-site/.*" />',
+      '</filter>',
+      '',
+      '<filter root="/apps/myapp/clientlib-site">',
+      '<exclude pattern="/apps/myapp/clientlib-site/.*" />',
+      '<include pattern="/apps/myapp/clientlib-site/.content" />',
+      '<include pattern="/apps/myapp/clientlib-site/.content/.*" />',
+      '</filter>',
+      '',
+      '<filter root="/apps/myapp">',
+      '<exclude pattern="/apps/myapp/.*" />',
+      '<include pattern="/apps/myapp/.content" />',
+      '<include pattern="/apps/myapp/.content/.*" />',
+      '</filter>',
+      '',
+      '<filter root="/apps">',
+      '<exclude pattern="/apps/.*" />',
+      '<include pattern="/apps/.content" />',
+      '<include pattern="/apps/.content/.*" />',
+      '</filter>',
+      '',
+      '<filter root="/apps/myapp">',
+      '<exclude pattern="/apps/myapp/.*" />',
+      '<include pattern="/apps/myapp/clientlib-site-new" />',
+      '<include pattern="/apps/myapp/clientlib-site-new/.*" />',
+      '</filter>',
+      '',
+      '<filter root="/apps/myapp/clientlib-site-new">',
+      '<exclude pattern="/apps/myapp/clientlib-site-new/.*" />',
+      '<include pattern="/apps/myapp/clientlib-site-new/.content" />',
+      '<include pattern="/apps/myapp/clientlib-site-new/.content/.*" />',
       '</filter>',
       '</workspaceFilter>'
     ]
