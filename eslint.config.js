@@ -1,2 +1,2 @@
-import neostandard, { resolveIgnoresFromGitignore } from 'neostandard'
-export default neostandard({ ignores: resolveIgnoresFromGitignore() })
+import getConfig from 'lazy-eslint'
+export default getConfig()

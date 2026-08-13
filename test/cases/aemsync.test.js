@@ -14,13 +14,14 @@ const results = []
 // Helpers
 // -----------------------------------------------------------------------------
 
-async function watch (breakStuff) {
+async function watch () {
   fs.removeSync(TEMP)
   fs.copySync(SAMPLE_CONTENT, TEMP)
   const args = {
     workingDir: TEMP,
-    postHandler: () => ({ target: 'http://test.local' }),
-    breakStuff
+    // We are testing, http is fine.
+    // eslint-disable-next-line sonarjs/no-clear-text-protocols
+    postHandler: () => ({ target: 'http://test.local' })
   }
 
   for await (const result of aemsync(args)) {

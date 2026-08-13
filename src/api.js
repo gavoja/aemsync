@@ -60,9 +60,9 @@ async function post ({ archivePath, target, packmgrPath, checkIfUp }) {
           // Error code in status.
           result.err = new Error(obj.crx.response.status.textNode)
         }
-      } catch (err) {
+      } catch {
         // Unexpected response format.
-        throw new Error('Unexpected response text format')
+        throw new Error('Unexpected response text format.')
       }
     } else {
       // Handle errors with the failed request.
@@ -112,26 +112,27 @@ async function wait (ms) {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
 
-// =============================================================================
-// Main API.
-// =============================================================================
+function createPackage (payload, exclude) {
+  const pack = new Package(exclude)
+  for (const localPath of payload) {
+    const item = pack.add(localPath)
+    item && log.info(item.exists ? '+' : '-', item.zipPath)
+  }
 
-export async function * push (args) {
-  const { payload, exclude, targets, packmgrPath, checkIfUp, postHandler, breakStuff } = { ...DEFAULTS, ...args }
+  return pack
+}
+
+async function createArchive (payload, exclude) {
+  const pack = new Package(exclude)
+  for (const localPath of payload) {
+    const item = pack.add(localPath)
+    item && log.info(item.exists ? '+' : '-', item.zipPath)
+  }
 
   // Get archive as many times as necessary.
   let archive
   while (true) {
-    const pack = new Package(exclude)
-    for (const localPath of payload) {
-      const item = pack.add(localPath)
-      item && log.info(item.exists ? '+' : '-', item.zipPath)
-    }
-
-    // Ability to break stuff when testing.
-    // This is to simulate changes between change reported and archive creation.
-    breakStuff && await breakStuff()
-
+    const pack = createPackage(payload, exclude)
     archive = pack.save()
     if (archive.err) {
       log.debug(archive.err)
@@ -142,6 +143,16 @@ export async function * push (args) {
     }
   }
 
+  return archive
+}
+
+// =============================================================================
+// Main API.
+// =============================================================================
+
+export async function * push (args) {
+  const { payload, exclude, targets, packmgrPath, checkIfUp, postHandler } = { ...DEFAULTS, ...args }
+  const archive = await createArchive(payload, exclude)
   // Archive may not be created if items added are on the exclude path.
   if (archive.path) {
     for (const target of targets) {

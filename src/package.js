@@ -205,7 +205,7 @@ export default class Package {
       const stat = fs.statSync(localPath)
       entry.exists = true
       entry.isFolder = stat.isDirectory()
-    } catch (err) {
+    } catch {
       entry.exists = false
     }
 
@@ -220,7 +220,7 @@ export default class Package {
 
   _getZipPath (localPath) {
     return this._cleanPath(localPath)
-      .replace(/.*\/(jcr_root\/.*)/, '$1')
+      .replace(/^.*\/(jcr_root\/.*)$/, '$1')
   }
 
   _getFilterPath (localPath) {
@@ -228,7 +228,7 @@ export default class Package {
     // Although incorrect, it does not matter and makes the handling
     // consistent.
     return this._cleanPath(localPath)
-      .replace(/(.*jcr_root)|(\.xml$)|(\.dir)/g, '')
+      .replace(/(.*jcr_root)|(\.xml$)|(\.dir)/g, '') // eslint-disable-line sonarjs/super-linear-regex
       .replace(/\/_([^/^_]*)_([^/]*)$/g, '/$1:$2')
   }
 }
