@@ -50,7 +50,7 @@ async function delay (ms) {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
 
-async function expect (expected, message) {
+async function expectLastEntry (expected, message) {
   const start = Date.now()
   while (Date.now() - start < 1000) {
     const entry = results.at(-1)
@@ -103,12 +103,12 @@ test('Excluded files and directories', async () => {
   add('foo/.git/bar.txt')
   add('foo/target/bar')
   add('foo/target/bar.txt')
-  await expect(null)
+  await expectLastEntry(null)
 })
 
 test('+ file.txt', async () => {
   add(`${COMPONENT}/file.txt`)
-  await expect({
+  await expectLastEntry({
     entries: [
       'META-INF/',
       'META-INF/vault/',
@@ -158,7 +158,7 @@ test('+ file.txt', async () => {
 
 test('- file.txt', async () => {
   remove(`${COMPONENT}/file.txt`)
-  await expect({
+  await expectLastEntry({
     entries: [
       'META-INF/',
       'META-INF/vault/',
@@ -208,7 +208,7 @@ test('- file.txt', async () => {
 // and then emits spurious rename events for them, breaking the assertions.
 test('+ my-folder', async () => {
   add(`${COMPONENT}/my-folder`)
-  await expect({
+  await expectLastEntry({
     entries: [
       'META-INF/',
       'META-INF/vault/',
@@ -265,7 +265,7 @@ test('+ my-folder', async () => {
 
 test('+ my-folder/sub-folder', async () => {
   add(`${COMPONENT}/my-folder/sub-folder`)
-  await expect({
+  await expectLastEntry({
     entries: [
       'META-INF/',
       'META-INF/vault/',
@@ -329,7 +329,7 @@ test('+ my-folder/sub-folder', async () => {
 
 test('- my-folder', async () => {
   remove(`${COMPONENT}/my-folder`)
-  await expect({
+  await expectLastEntry({
     entries: [
       'META-INF/',
       'META-INF/vault/',
@@ -380,7 +380,7 @@ test('+ component', async () => {
   add(`${COMPONENT}/_cq_design_dialog.xml`)
   add(`${COMPONENT}/deleted.xml`)
   remove(`${COMPONENT}/deleted.xml`)
-  await expect({
+  await expectLastEntry({
     entries: [
       'META-INF/',
       'META-INF/vault/',
@@ -443,7 +443,7 @@ test('+ component', async () => {
 test('+ sibling folders with shared prefix', async () => {
   add('jcr_root/apps/myapp/clientlib-site')
   add('jcr_root/apps/myapp/clientlib-site-new')
-  await expect({
+  await expectLastEntry({
     entries: [
       'META-INF/',
       'META-INF/vault/',
