@@ -43,9 +43,9 @@
     "lint": "npx eslint .",
     "format": "npx eslint . --fix",
     "test": "node --test --test-reporter=spec --test-reporter-destination=stdout --experimental-test-coverage --test-coverage-exclude \"test/**/*\"",
-    "release": "dotenv release-it -- --verbose",
-    "release:ci": "dotenv release-it --ci",
-    "release:dry": "dotenv release-it --dry-run"
+    "release": "dotenv run release-it -- --verbose",
+    "release:ci": "dotenv run release-it --ci",
+    "release:dry": "dotenv run release-it --dry-run"
   },
   "engines": {
     "node": ">=22.18.0"
