@@ -198,7 +198,7 @@ export default class Package {
     const entry = {
       localPath,
       zipPath,
-      filterPath: this._getFilterPath(zipPath)
+      filterPath: this._getFilterPath(zipPath),
     }
 
     try {

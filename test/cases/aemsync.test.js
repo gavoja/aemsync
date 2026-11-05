@@ -21,7 +21,7 @@ async function watch () {
     workingDir: TEMP,
     // We are testing, http is fine.
     // eslint-disable-next-line sonarjs/no-clear-text-protocols
-    postHandler: () => ({ target: 'http://test.local' })
+    postHandler: () => ({ target: 'http://test.local' }),
   }
 
   for await (const result of aemsync(args)) {
@@ -123,7 +123,7 @@ test('+ file.txt', async () => {
       'jcr_root/apps/.content.xml@nt:folder',
       'jcr_root/apps/myapp/.content.xml@nt:folder',
       'jcr_root/apps/myapp/component/.content.xml@cq:Component',
-      'jcr_root/apps/myapp/component/file.txt'
+      'jcr_root/apps/myapp/component/file.txt',
     ],
     filter: [
       '<?xml version="1.0" encoding="UTF-8"?>',
@@ -151,8 +151,8 @@ test('+ file.txt', async () => {
       '<include pattern="/apps/.content" />',
       '<include pattern="/apps/.content/.*" />',
       '</filter>',
-      '</workspaceFilter>'
-    ]
+      '</workspaceFilter>',
+    ],
   })
 })
 
@@ -172,7 +172,7 @@ test('- file.txt', async () => {
       'jcr_root/aemsync.txt',
       'jcr_root/apps/.content.xml@nt:folder',
       'jcr_root/apps/myapp/.content.xml@nt:folder',
-      'jcr_root/apps/myapp/component/.content.xml@cq:Component'
+      'jcr_root/apps/myapp/component/.content.xml@cq:Component',
     ],
     filter: [
       '<?xml version="1.0" encoding="UTF-8"?>',
@@ -196,8 +196,8 @@ test('- file.txt', async () => {
       '<include pattern="/apps/.content" />',
       '<include pattern="/apps/.content/.*" />',
       '</filter>',
-      '</workspaceFilter>'
-    ]
+      '</workspaceFilter>',
+    ],
   })
 })
 
@@ -224,7 +224,7 @@ test('+ my-folder', async () => {
       'jcr_root/apps/myapp/.content.xml@nt:folder',
       'jcr_root/apps/myapp/component/.content.xml@cq:Component',
       'jcr_root/apps/myapp/component/my-folder/',
-      'jcr_root/apps/myapp/component/my-folder/.content.xml@nt:folder'
+      'jcr_root/apps/myapp/component/my-folder/.content.xml@nt:folder',
     ],
     filter: [
       '<?xml version="1.0" encoding="UTF-8"?>',
@@ -258,8 +258,8 @@ test('+ my-folder', async () => {
       '<include pattern="/apps/.content" />',
       '<include pattern="/apps/.content/.*" />',
       '</filter>',
-      '</workspaceFilter>'
-    ]
+      '</workspaceFilter>',
+    ],
   })
 })
 
@@ -282,7 +282,7 @@ test('+ my-folder/sub-folder', async () => {
       'jcr_root/apps/myapp/component/.content.xml@cq:Component',
       'jcr_root/apps/myapp/component/my-folder/.content.xml@nt:folder',
       'jcr_root/apps/myapp/component/my-folder/sub-folder/',
-      'jcr_root/apps/myapp/component/my-folder/sub-folder/.content.xml@nt:folder'
+      'jcr_root/apps/myapp/component/my-folder/sub-folder/.content.xml@nt:folder',
     ],
     filter: [
       '<?xml version="1.0" encoding="UTF-8"?>',
@@ -322,8 +322,8 @@ test('+ my-folder/sub-folder', async () => {
       '<include pattern="/apps/.content" />',
       '<include pattern="/apps/.content/.*" />',
       '</filter>',
-      '</workspaceFilter>'
-    ]
+      '</workspaceFilter>',
+    ],
   })
 })
 
@@ -343,7 +343,7 @@ test('- my-folder', async () => {
       'jcr_root/aemsync.txt',
       'jcr_root/apps/.content.xml@nt:folder',
       'jcr_root/apps/myapp/.content.xml@nt:folder',
-      'jcr_root/apps/myapp/component/.content.xml@cq:Component'
+      'jcr_root/apps/myapp/component/.content.xml@cq:Component',
     ],
     filter: [
       '<?xml version="1.0" encoding="UTF-8"?>',
@@ -367,8 +367,8 @@ test('- my-folder', async () => {
       '<include pattern="/apps/.content" />',
       '<include pattern="/apps/.content/.*" />',
       '</filter>',
-      '</workspaceFilter>'
-    ]
+      '</workspaceFilter>',
+    ],
   })
 })
 
@@ -413,7 +413,7 @@ test('+ component', async () => {
       'jcr_root/apps/myapp/component/folder-node-nested/foo/bar/baz/.content.xml@nt:unstructured',
       'jcr_root/apps/myapp/component/folder-node-nested/foo/bar/baz/file-node.xml',
       'jcr_root/apps/myapp/component/folder-node/',
-      'jcr_root/apps/myapp/component/folder-node/.content.xml@nt:unstructured'
+      'jcr_root/apps/myapp/component/folder-node/.content.xml@nt:unstructured',
     ],
     filter: [
       '<?xml version="1.0" encoding="UTF-8"?>',
@@ -435,8 +435,8 @@ test('+ component', async () => {
       '<include pattern="/apps/.content" />',
       '<include pattern="/apps/.content/.*" />',
       '</filter>',
-      '</workspaceFilter>'
-    ]
+      '</workspaceFilter>',
+    ],
   })
 })
 
@@ -460,7 +460,7 @@ test('+ sibling folders with shared prefix', async () => {
       'jcr_root/apps/myapp/clientlib-site-new/',
       'jcr_root/apps/myapp/clientlib-site-new/.content.xml@nt:folder',
       'jcr_root/apps/myapp/clientlib-site/',
-      'jcr_root/apps/myapp/clientlib-site/.content.xml@nt:folder'
+      'jcr_root/apps/myapp/clientlib-site/.content.xml@nt:folder',
     ],
     filter: [
       '<?xml version="1.0" encoding="UTF-8"?>',
@@ -500,7 +500,7 @@ test('+ sibling folders with shared prefix', async () => {
       '<include pattern="/apps/myapp/clientlib-site-new/.content" />',
       '<include pattern="/apps/myapp/clientlib-site-new/.content/.*" />',
       '</filter>',
-      '</workspaceFilter>'
-    ]
+      '</workspaceFilter>',
+    ],
   })
 })

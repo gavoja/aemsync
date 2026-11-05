@@ -14,14 +14,14 @@ export const DEFAULTS = {
     // Special files.
     '**/@(.*|target|[Tt]humbs.db|[Dd]esktop.ini)',
     // Special folders.
-    '**/@(.*|target)/**'
+    '**/@(.*|target)/**',
   ],
   packmgrPath: '/crx/packmgr/service.jsp',
   targets: ['http://admin:admin@localhost:4502'],
   delay: 300,
   checkIfUp: false,
   postHandler: post,
-  verbose: false
+  verbose: false,
 }
 
 // =============================================================================

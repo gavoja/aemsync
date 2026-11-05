@@ -77,7 +77,7 @@ function getArgs () {
     checkIfUp: !!args.c,
     packmgrPath: args?.q?.pop?.() ?? DEFAULTS.packmgrPath,
     help: !!args.h,
-    verbose: !!args.v
+    verbose: !!args.v,
   }
 }
 

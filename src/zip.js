@@ -54,7 +54,7 @@ export default class Zip {
         for (const entityName of fs.readdirSync(current.localPath)) {
           pipeline.push({
             localPath: current.localPath + '/' + entityName,
-            zipPath: current.zipPath + '/' + entityName
+            zipPath: current.zipPath + '/' + entityName,
           })
         }
       } else {
